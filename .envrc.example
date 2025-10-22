@@ -1,0 +1,14 @@
+# ========================
+# App Ports
+# ========================
+export HTTP_PORT=8080
+
+# ========================
+# Database (used by DBConfig)
+# ========================
+export MYSQL_PORT=3306
+export MYSQL_ROOT_PASSWORD=password
+export MYSQL_PASSWORD=test
+export MYSQL_DATABASE=event
+export MYSQL_USER=test
+export MYSQL_HOST=127.0.0.1
