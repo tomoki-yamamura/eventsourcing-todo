@@ -10,6 +10,10 @@ import (
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/repository"
 )
 
+type TodoUseCaseInterface interface {
+	AddTodo(ctx context.Context, todo string) error
+}
+
 type TodoUseCase struct {
 	tx repository.Transaction
 }
