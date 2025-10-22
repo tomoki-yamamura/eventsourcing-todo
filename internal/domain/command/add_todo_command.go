@@ -1,8 +1,11 @@
 package command
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/value"
+)
 
 type AddTodoCommand struct {
 	AggregateID uuid.UUID
-	Todo        string
+	TodoText    value.TodoText
 }

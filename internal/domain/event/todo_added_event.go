@@ -4,11 +4,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/value"
 )
 
 type TodoAddedEvent struct {
 	AggregateID uuid.UUID
-	Todo        string
+	TodoText    value.TodoText
 	EventID     uuid.UUID
 	Timestamp   time.Time
 	Version     int

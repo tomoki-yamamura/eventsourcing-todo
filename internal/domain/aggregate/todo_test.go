@@ -4,60 +4,42 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/command"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/value"
 )
 
 func TestTodoAggregate_ExecuteAddTodoCommand(t *testing.T) {
 	// Arrange
 	aggregate := NewTodoAggregate()
 	aggregateID := uuid.New()
+	todoText, err := value.NewTodoText("Learn Event Sourcing")
+	require.NoError(t, err)
 	cmd := command.AddTodoCommand{
 		AggregateID: aggregateID,
-		Todo:        "Learn Event Sourcing",
+		TodoText:    todoText,
 	}
 
 	// Act
-	err := aggregate.ExecuteAddTodoCommand(cmd)
+	err = aggregate.ExecuteAddTodoCommand(cmd)
 	// Assert
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	if aggregate.GetAggregateID() != aggregateID {
-		t.Errorf("Expected aggregate ID %v, got %v", aggregateID, aggregate.GetAggregateID())
-	}
-
-	if aggregate.GetVersion() != 1 {
-		t.Errorf("Expected version 1, got %d", aggregate.GetVersion())
-	}
+	require.NoError(t, err)
+	require.Equal(t, aggregateID, aggregate.GetAggregateID())
+	require.Equal(t, 1, aggregate.GetVersion())
 
 	uncommittedEvents := aggregate.GetUncommittedEvents()
-	if len(uncommittedEvents) != 1 {
-		t.Errorf("Expected 1 uncommitted event, got %d", len(uncommittedEvents))
-	}
-
-	if uncommittedEvents[0].GetEventType() != "TodoAddedEvent" {
-		t.Errorf("Expected TodoAddedEvent, got %s", uncommittedEvents[0].GetEventType())
-	}
+	require.Len(t, uncommittedEvents, 1)
+	require.Equal(t, "TodoAddedEvent", uncommittedEvents[0].GetEventType())
 }
 
 func TestTodoAggregate_ExecuteAddTodoCommand_EmptyTodo(t *testing.T) {
 	// Arrange
 	aggregate := NewTodoAggregate()
-	cmd := command.AddTodoCommand{
-		AggregateID: uuid.New(),
-		Todo:        "",
-	}
+	_, err := value.NewTodoText("")
+	require.Error(t, err)
+	require.ErrorIs(t, err, value.ErrTodoTextEmpty)
 
-	// Act
-	err := aggregate.ExecuteAddTodoCommand(cmd)
-
-	// Assert
-	if err == nil {
-		t.Fatal("Expected error for empty todo")
-	}
-
-	if len(aggregate.GetUncommittedEvents()) != 0 {
-		t.Error("Expected no uncommitted events for invalid command")
-	}
+	// Empty todo should be caught at value object level
+	// No need to test aggregate with invalid value object
+	require.Empty(t, aggregate.GetUncommittedEvents())
 }

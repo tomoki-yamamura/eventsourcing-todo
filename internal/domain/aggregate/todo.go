@@ -47,13 +47,11 @@ func (a *TodoAggregate) Hydration(events []event.Event) error {
 }
 
 func (a *TodoAggregate) ExecuteAddTodoCommand(cmd command.AddTodoCommand) error {
-	if cmd.Todo == "" {
-		return fmt.Errorf("todo cannot be empty")
-	}
-
+	// set a limit of only three items per day for Todo.
+	
 	evt := event.TodoAddedEvent{
 		AggregateID: cmd.AggregateID,
-		Todo:        cmd.Todo,
+		TodoText:        cmd.TodoText,
 		EventID:     uuid.New(),
 		Timestamp:   time.Now(),
 		Version:     a.version + 1,
