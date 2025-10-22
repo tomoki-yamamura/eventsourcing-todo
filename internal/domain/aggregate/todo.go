@@ -37,7 +37,7 @@ func (a *TodoAggregate) MarkEventsAsCommitted() {
 	a.uncommittedEvents = make([]event.Event, 0)
 }
 
-func (a *TodoAggregate) LoadFromHistory(events []event.Event) error {
+func (a *TodoAggregate) Hydration(events []event.Event) error {
 	for _, evt := range events {
 		if err := a.applyEvent(evt, false); err != nil {
 			return fmt.Errorf("failed to apply event: %w", err)
