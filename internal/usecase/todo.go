@@ -18,7 +18,7 @@ type TodoUseCase struct {
 	tx repository.Transaction
 }
 
-func NewTodoUseCase(tx repository.Transaction) *TodoUseCase {
+func NewTodoUseCase(tx repository.Transaction) TodoUseCaseInterface {
 	return &TodoUseCase{
 		tx: tx,
 	}
