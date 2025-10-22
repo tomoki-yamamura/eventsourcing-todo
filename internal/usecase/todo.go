@@ -29,7 +29,7 @@ func (u *TodoUseCase) AddTodo(ctx context.Context, todo string) error {
 		}
 
 		aggregate := aggregate.NewTodoAggregate()
-		if err := aggregate.HandleAddTodoCommand(cmd); err != nil {
+		if err := aggregate.ExecuteAddTodoCommand(cmd); err != nil {
 			return fmt.Errorf("failed to handle add todo command: %w", err)
 		}
 

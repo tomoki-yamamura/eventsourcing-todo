@@ -10,8 +10,8 @@ import (
 )
 
 type TodoAggregate struct {
-	aggregateID uuid.UUID
-	version     int
+	aggregateID       uuid.UUID
+	version           int
 	uncommittedEvents []event.Event
 }
 
@@ -46,7 +46,7 @@ func (a *TodoAggregate) Hydration(events []event.Event) error {
 	return nil
 }
 
-func (a *TodoAggregate) HandleAddTodoCommand(cmd command.AddTodoCommand) error {
+func (a *TodoAggregate) ExecuteAddTodoCommand(cmd command.AddTodoCommand) error {
 	if cmd.Todo == "" {
 		return fmt.Errorf("todo cannot be empty")
 	}
@@ -73,7 +73,7 @@ func (a *TodoAggregate) applyEvent(evt event.Event, isNew bool) error {
 	if isNew {
 		a.uncommittedEvents = append(a.uncommittedEvents, evt)
 	}
-	
+
 	a.version = evt.GetVersion()
 	return nil
 }

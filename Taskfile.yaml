@@ -1,0 +1,41 @@
+version: "3"
+
+tasks:
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - go install mvdan.cc/gofumpt@latest
+      - gofumpt -w .
+      - go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+      - golangci-lint run ./... --timeout=5m
+
+  test:
+    desc: Run all tests
+    cmds:
+      - go test ./... -v
+
+  docker:up:
+    desc: Start Docker containers (DB etc.)
+    dir: ./docker
+    cmds:
+      - docker compose up -d
+
+  docker:down:
+    desc: Stop Docker containers and remove volumes
+    dir: ./docker
+    cmds:
+      - docker compose down -v
+
+  migrate:up:
+    desc: Run DB migrations using goose
+    cmds:
+      - |
+        goose -dir db/migrations mysql \
+        "${MYSQL_USER}:${MYSQL_PASSWORD}@tcp(${MYSQL_HOST}:${MYSQL_PORT})/${MYSQL_DATABASE}?parseTime=true&charset=utf8mb4" up
+
+  migrate:down:
+    desc: Rollback last DB migration using goose
+    cmds:
+      - |
+        goose -dir db/migrations mysql \
+        "${MYSQL_USER}:${MYSQL_PASSWORD}@tcp(${MYSQL_HOST}:${MYSQL_PORT})/${MYSQL_DATABASE}?parseTime=true&charset=utf8mb4" down

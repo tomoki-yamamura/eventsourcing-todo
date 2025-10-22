@@ -7,7 +7,7 @@ import (
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/command"
 )
 
-func TestTodoAggregate_HandleAddTodoCommand(t *testing.T) {
+func TestTodoAggregate_ExecuteAddTodoCommand(t *testing.T) {
 	// Arrange
 	aggregate := NewTodoAggregate()
 	aggregateID := uuid.New()
@@ -17,8 +17,7 @@ func TestTodoAggregate_HandleAddTodoCommand(t *testing.T) {
 	}
 
 	// Act
-	err := aggregate.HandleAddTodoCommand(cmd)
-
+	err := aggregate.ExecuteAddTodoCommand(cmd)
 	// Assert
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
@@ -42,7 +41,7 @@ func TestTodoAggregate_HandleAddTodoCommand(t *testing.T) {
 	}
 }
 
-func TestTodoAggregate_HandleAddTodoCommand_EmptyTodo(t *testing.T) {
+func TestTodoAggregate_ExecuteAddTodoCommand_EmptyTodo(t *testing.T) {
 	// Arrange
 	aggregate := NewTodoAggregate()
 	cmd := command.AddTodoCommand{
@@ -51,7 +50,7 @@ func TestTodoAggregate_HandleAddTodoCommand_EmptyTodo(t *testing.T) {
 	}
 
 	// Act
-	err := aggregate.HandleAddTodoCommand(cmd)
+	err := aggregate.ExecuteAddTodoCommand(cmd)
 
 	// Assert
 	if err == nil {
