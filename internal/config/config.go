@@ -1,0 +1,27 @@
+package config
+
+import (
+	"github.com/kelseyhightower/envconfig"
+)
+
+type Config struct {
+	HTTPPort string `required:"true" envconfig:"HTTP_PORT"`
+	DatabaseConfig
+}
+
+func NewConfig() (*Config, error) {
+	var cfg Config
+	err := envconfig.Process("", &cfg)
+	if err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+type DatabaseConfig struct {
+	User     string `required:"true" envconfig:"MYSQL_USER"`
+	Password string `required:"true" envconfig:"MYSQL_PASSWORD"`
+	Host     string `required:"true" envconfig:"MYSQL_HOST"`
+	Port     string `required:"true" envconfig:"MYSQL_PORT"`
+	Name     string `required:"true" envconfig:"MYSQL_DATABASE"`
+}
