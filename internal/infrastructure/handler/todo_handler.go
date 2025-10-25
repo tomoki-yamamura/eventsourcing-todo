@@ -22,7 +22,6 @@ func NewTodoHandler(todoUseCase usecase.TodoUseCaseInterface) *TodoHandler {
 }
 
 func (h *TodoHandler) CreateTodoList(w http.ResponseWriter, r *http.Request) {
-
 	var req request.CreateTodoListRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
@@ -47,7 +46,10 @@ func (h *TodoHandler) CreateTodoList(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *TodoHandler) AddTodo(w http.ResponseWriter, r *http.Request) {
@@ -81,7 +83,10 @@ func (h *TodoHandler) AddTodo(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *TodoHandler) GetTodoList(w http.ResponseWriter, r *http.Request) {
@@ -105,5 +110,8 @@ func (h *TodoHandler) GetTodoList(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }

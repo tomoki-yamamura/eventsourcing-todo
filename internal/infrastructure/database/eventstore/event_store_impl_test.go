@@ -129,19 +129,19 @@ func TestEventStoreImpl_SaveEvents(t *testing.T) {
 					var createdAt time.Time
 					err := rows.Scan(&eventID, &eventType, &eventData, &version, &createdAt)
 					require.NoError(t, err)
-					
+
 					// DB insertの基本検証
 					require.Equal(t, tt.events[count].GetEventType(), eventType)
 					require.Equal(t, tt.events[count].GetVersion(), version)
 					require.Equal(t, tt.events[count].GetEventID().String(), eventID)
-					
+
 					// JSONシリアライゼーションの検証
 					require.NotEmpty(t, eventData, "Event data should not be empty")
 					require.True(t, json.Valid(eventData), "Event data should be valid JSON")
-					
+
 					// created_atが設定されているかの検証
 					require.False(t, createdAt.IsZero(), "created_at should be set")
-					
+
 					count++
 				}
 				require.NoError(t, rows.Err())

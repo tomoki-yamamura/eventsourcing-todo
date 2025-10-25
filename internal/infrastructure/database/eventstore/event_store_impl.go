@@ -56,7 +56,7 @@ func (e *eventStoreImpl) SaveEvents(ctx context.Context, aggregateID uuid.UUID, 
 		)
 		if err != nil {
 			if isDuplicateKeyError(err) {
-				return fmt.Errorf("optimistic lock error: version conflict for aggregate %s version %d", 
+				return fmt.Errorf("optimistic lock error: version conflict for aggregate %s version %d",
 					aggregateID, evt.GetVersion())
 			}
 			return err
@@ -68,7 +68,7 @@ func (e *eventStoreImpl) SaveEvents(ctx context.Context, aggregateID uuid.UUID, 
 
 func isDuplicateKeyError(err error) bool {
 	return strings.Contains(err.Error(), "Duplicate entry") ||
-		   strings.Contains(err.Error(), "Error 1062")
+		strings.Contains(err.Error(), "Error 1062")
 }
 
 func (e *eventStoreImpl) LoadEvents(ctx context.Context, aggregateID uuid.UUID) ([]event.Event, error) {

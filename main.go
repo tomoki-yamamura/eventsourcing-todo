@@ -38,6 +38,6 @@ func main() {
 	// Start server
 	port := ":" + cfg.HTTPPort
 	fmt.Printf("Server starting on port %s\n", port)
-	
+
 	log.Fatal(http.ListenAndServe(port, mux))
 }

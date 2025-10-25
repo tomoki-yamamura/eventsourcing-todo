@@ -55,7 +55,6 @@ func (u *TodoUseCase) CreateTodoList(ctx context.Context, userID string) (string
 
 		return nil
 	})
-
 	if err != nil {
 		return "", err
 	}
@@ -175,7 +174,6 @@ func (u *TodoUseCase) GetTodoList(ctx context.Context, input *input.GetTodoListI
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
