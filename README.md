@@ -1,0 +1,240 @@
+# Event Sourcing Todo Application
+
+This is a Todo application built using **Event Sourcing** architecture in Go.
+It demonstrates Domain-Driven Design (DDD) principles, implementing CQRS pattern for command and query separation.
+
+---
+
+## Tech Stack
+
+This project uses the following core technologies:
+- [golang](https://go.dev/)
+- [gorilla/mux](https://github.com/gorilla/mux) - HTTP router
+- [goose](https://github.com/pressly/goose) - Database migration tool
+- [MySQL](https://www.mysql.com/) - Event store database
+- [Docker](https://www.docker.com/) - Containerization
+
+---
+
+## Architecture
+
+The application follows **Clean Architecture** principles with the following layers:
+
+- **Domain Layer**: Aggregates, Value Objects, Commands, Events, and Repository interfaces
+- **UseCase Layer**: Business logic and application services
+- **Infrastructure Layer**: Database implementations, HTTP handlers, and external integrations
+
+### Event Sourcing Components
+
+- **Aggregates**: TodoListAggregate manages todo list state through events
+- **Events**: TodoListCreatedEvent, TodoAddedEvent capture state changes
+- **Event Store**: Persists events with optimistic locking for concurrency control
+- **Read Models**: Separate query models for retrieving todo lists
+
+---
+
+## Requirements
+
+- `direnv`
+- `docker` and `docker-compose`
+- `go` 1.21+
+
+---
+
+## Environment Setup
+
+Install task:
+```bash
+brew install go-task/tap/go-task
+```
+or
+```bash
+sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d
+```
+
+Copy the example env file:
+```bash
+cp .envrc.example .envrc
+```
+
+Set up direnv:
+```bash
+direnv allow
+```
+
+Start MySQL database:
+```bash
+task docker:up
+```
+
+Run database migrations:
+```bash
+task migrate:up
+```
+
+---
+
+## API Endpoints
+
+The application exposes RESTful APIs for managing todo lists:
+
+### Create Todo List
+```bash
+POST /todo-lists
+```
+Request body:
+```json
+{
+  "user_id": "user123"
+}
+```
+
+### Add Todo Item
+```bash
+POST /todo-lists/{aggregate_id}/todos
+```
+Request body:
+```json
+{
+  "user_id": "user123",
+  "text": "Learn Event Sourcing"
+}
+```
+
+### Get Todo List
+```bash
+GET /todo-lists/{aggregate_id}/todos
+```
+
+---
+
+## Run Application
+
+Start the API server:
+```bash
+task run
+```
+or with environment variables:
+```bash
+HTTP_PORT=8080 MYSQL_PORT=23306 MYSQL_ROOT_PASSWORD=password MYSQL_PASSWORD=test MYSQL_DATABASE=event MYSQL_USER=test MYSQL_HOST=127.0.0.1 go run main.go
+```
+
+Once running, test the API:
+
+1. Create a new todo list:
+```bash
+curl -X POST "http://localhost:8080/todo-lists" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "user123"}'
+```
+
+2. Add a todo item (replace {aggregate_id} with the ID from step 1):
+```bash
+curl -X POST "http://localhost:8080/todo-lists/{aggregate_id}/todos" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "user123", "text": "Learn Event Sourcing"}'
+```
+
+3. Get todo list:
+```bash
+curl -X GET "http://localhost:8080/todo-lists/{aggregate_id}/todos"
+```
+
+---
+
+## Testing
+
+Run tests:
+```bash
+task test
+```
+
+Run tests with coverage:
+```bash
+task test:coverage
+```
+
+Run integration tests:
+```bash
+task test:integration
+```
+
+---
+
+## Development
+
+### Code Quality
+
+Run linting:
+```bash
+task lint
+```
+
+Format code:
+```bash
+task fmt
+```
+
+### Database Operations
+
+Create new migration:
+```bash
+task migrate:create -- migration_name
+```
+
+Check migration status:
+```bash
+task migrate:status
+```
+
+Reset database:
+```bash
+task migrate:reset
+```
+
+---
+
+## Project Structure
+
+```
+├── cmd/                    # Application entry points
+├── internal/
+│   ├── domain/            # Domain layer (aggregates, events, value objects)
+│   │   ├── aggregate/     # Domain aggregates
+│   │   ├── command/       # Domain commands
+│   │   ├── entity/        # Domain entities
+│   │   ├── event/         # Domain events
+│   │   ├── repository/    # Repository interfaces
+│   │   └── value/         # Value objects
+│   ├── usecase/           # UseCase layer (application services)
+│   │   ├── input/         # Input DTOs
+│   │   └── output/        # Output DTOs
+│   └── infrastructure/    # Infrastructure layer
+│       ├── database/      # Database implementations
+│       ├── handler/       # HTTP handlers
+│       └── router/        # HTTP routing
+├── container/             # Dependency injection container
+├── config/               # Configuration management
+├── docker-compose.yaml   # Docker services
+└── Taskfile.yaml        # Task definitions
+```
+
+---
+
+## Features
+
+- ✅ **Event Sourcing**: All state changes are captured as immutable events
+- ✅ **CQRS**: Separate command and query models
+- ✅ **Optimistic Locking**: Prevents concurrent modification conflicts
+- ✅ **Clean Architecture**: Well-separated layers with dependency inversion
+- ✅ **Domain-Driven Design**: Rich domain models with business logic
+- ✅ **RESTful API**: Standard HTTP endpoints following REST conventions
+- ✅ **Database Migrations**: Version-controlled schema changes
+- ✅ **Dependency Injection**: Loose coupling between components
+- ✅ **Comprehensive Testing**: Unit and integration tests
+
+---
+
+## License
+
+This project is for educational purposes demonstrating Event Sourcing patterns in Go.
