@@ -26,6 +26,6 @@ func NewTodoText(text string) (TodoText, error) {
 	return TodoText(trimmed), nil
 }
 
-func (t TodoText) ToString() string {
+func (t TodoText) String() string {
 	return string(t)
 }

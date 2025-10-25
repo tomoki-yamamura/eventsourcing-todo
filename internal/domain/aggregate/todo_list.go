@@ -33,6 +33,10 @@ func (a *TodoListAggregate) GetUserID() string {
 	return a.userID
 }
 
+func (a *TodoListAggregate) GetItems() []*entity.TodoItem {
+	return a.items
+}
+
 func (a *TodoListAggregate) GetVersion() int {
 	return a.version
 }

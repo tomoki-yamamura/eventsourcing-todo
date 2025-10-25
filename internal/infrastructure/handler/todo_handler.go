@@ -8,6 +8,7 @@ import (
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/handler/request"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/handler/response"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/input"
 )
 
 type TodoHandler struct {
@@ -81,4 +82,28 @@ func (h *TodoHandler) AddTodo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(resp)
+}
+
+func (h *TodoHandler) GetTodoList(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	aggregateID := vars["aggregate_id"]
+
+	if aggregateID == "" {
+		http.Error(w, "aggregate_id is required", http.StatusBadRequest)
+		return
+	}
+
+	input := &input.GetTodoListInput{
+		AggregateID: aggregateID,
+	}
+
+	result, err := h.todoUseCase.GetTodoList(r.Context(), input)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result)
 }

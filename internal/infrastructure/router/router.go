@@ -21,6 +21,9 @@ func (r *Router) SetupRoutes() *mux.Router {
 	// POST /todo-lists - Create new todo list
 	router.HandleFunc("/todo-lists", r.todoHandler.CreateTodoList).Methods("POST")
 
+	// GET /todo-lists/{aggregate_id}/todos - Get todos in the list
+	router.HandleFunc("/todo-lists/{aggregate_id}/todos", r.todoHandler.GetTodoList).Methods("GET")
+
 	// POST /todo-lists/{aggregate_id}/todos - Add todo to existing list
 	router.HandleFunc("/todo-lists/{aggregate_id}/todos", r.todoHandler.AddTodo).Methods("POST")
 
