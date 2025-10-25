@@ -3,8 +3,10 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 
+	"github.com/gorilla/mux"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/handler/request"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/handler/response"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase"
 )
 
@@ -18,31 +20,9 @@ func NewTodoHandler(todoUseCase usecase.TodoUseCaseInterface) *TodoHandler {
 	}
 }
 
-type CreateTodoListRequest struct {
-	UserID string `json:"user_id"`
-}
-
-type CreateTodoListResponse struct {
-	AggregateID string `json:"aggregate_id"`
-	Message     string `json:"message"`
-}
-
-type AddTodoRequest struct {
-	Text   string `json:"text"`
-	UserID string `json:"user_id"`
-}
-
-type AddTodoResponse struct {
-	Message string `json:"message"`
-}
-
 func (h *TodoHandler) CreateTodoList(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 
-	var req CreateTodoListRequest
+	var req request.CreateTodoListRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
@@ -59,7 +39,7 @@ func (h *TodoHandler) CreateTodoList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := CreateTodoListResponse{
+	resp := response.CreateTodoListResponse{
 		AggregateID: aggregateID,
 		Message:     "Todo list created successfully",
 	}
@@ -70,20 +50,10 @@ func (h *TodoHandler) CreateTodoList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TodoHandler) AddTodo(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
+	vars := mux.Vars(r)
+	aggregateID := vars["aggregate_id"]
 
-	// Extract aggregate_id from URL path: /todo-lists/{aggregate_id}/todos
-	pathParts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-	if len(pathParts) < 2 || pathParts[0] != "todo-lists" {
-		http.Error(w, "Invalid URL path", http.StatusBadRequest)
-		return
-	}
-	aggregateID := pathParts[1]
-
-	var req AddTodoRequest
+	var req request.AddTodoRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
@@ -104,7 +74,7 @@ func (h *TodoHandler) AddTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := AddTodoResponse{
+	resp := response.AddTodoResponse{
 		Message: "Todo added successfully",
 	}
 

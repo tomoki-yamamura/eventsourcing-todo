@@ -1,8 +1,7 @@
 package router
 
 import (
-	"net/http"
-
+	"github.com/gorilla/mux"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/handler"
 )
 
@@ -16,14 +15,14 @@ func NewRouter(todoHandler *handler.TodoHandler) *Router {
 	}
 }
 
-func (r *Router) SetupRoutes() *http.ServeMux {
-	mux := http.NewServeMux()
+func (r *Router) SetupRoutes() *mux.Router {
+	router := mux.NewRouter()
 
 	// POST /todo-lists - Create new todo list
-	mux.HandleFunc("/todo-lists", r.todoHandler.CreateTodoList)
+	router.HandleFunc("/todo-lists", r.todoHandler.CreateTodoList).Methods("POST")
 
 	// POST /todo-lists/{aggregate_id}/todos - Add todo to existing list
-	mux.HandleFunc("/todo-lists/", r.todoHandler.AddTodo)
+	router.HandleFunc("/todo-lists/{aggregate_id}/todos", r.todoHandler.AddTodo).Methods("POST")
 
-	return mux
+	return router
 }
