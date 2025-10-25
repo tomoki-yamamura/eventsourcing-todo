@@ -7,6 +7,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/config"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/repository"
 )
 
 const (
@@ -20,7 +21,7 @@ type Client struct {
 	DB *sqlx.DB
 }
 
-func NewClient(cfg config.DatabaseConfig) (*Client, error) {
+func NewClient(cfg config.DatabaseConfig) (repository.DatabaseClient, error) {
 	c := mysql.Config{
 		User:                 cfg.User,
 		Passwd:               cfg.Password,
@@ -53,4 +54,12 @@ func NewClient(cfg config.DatabaseConfig) (*Client, error) {
 	}
 
 	return &Client{DB: db}, nil
+}
+
+func (c *Client) GetDB() *sqlx.DB {
+	return c.DB
+}
+
+func (c *Client) Close() error {
+	return c.DB.Close()
 }
