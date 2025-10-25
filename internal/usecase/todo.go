@@ -42,7 +42,6 @@ func (u *TodoUseCase) CreateTodoList(ctx context.Context, userID string) (string
 
 		aggregateID = todoList.GetAggregateID().String()
 
-		// Save events to event store
 		if err := u.eventStore.SaveEvents(ctx, todoList.GetAggregateID(), todoList.GetUncommittedEvents()); err != nil {
 			return fmt.Errorf("failed to save events: %w", err)
 		}
@@ -53,7 +52,7 @@ func (u *TodoUseCase) CreateTodoList(ctx context.Context, userID string) (string
 	})
 
 	if err != nil {
-		return  "", nil
+		return "", err
 	}
 
 	return aggregateID, nil
@@ -71,13 +70,19 @@ func (u *TodoUseCase) AddTodo(ctx context.Context, aggregateID string, userID st
 			return fmt.Errorf("invalid aggregate ID: %w", err)
 		}
 
-		// TODO: 既存のTodoListを読み込み
-		// todoList := eventStore.LoadAggregate(ctx, aggregateUUID)
-		// if todoList == nil {
-		//     return fmt.Errorf("todo list not found")
-		// }
+		events, err := u.eventStore.LoadEvents(ctx, aggregateUUID)
+		if err != nil {
+			return fmt.Errorf("failed to load events: %w", err)
+		}
+		
+		if len(events) == 0 {
+			return fmt.Errorf("todo list not found")
+		}
+		
 		todoList := aggregate.NewTodoListAggregate()
-		// 暫定的に既存リストがあると仮定してaggregateIDを設定
+		if err := todoList.Hydration(events); err != nil {
+			return fmt.Errorf("failed to hydrate aggregate: %w", err)
+		}
 		
 		cmd := command.AddTodoCommand{
 			AggregateID: aggregateUUID,
@@ -89,7 +94,6 @@ func (u *TodoUseCase) AddTodo(ctx context.Context, aggregateID string, userID st
 			return fmt.Errorf("failed to handle add todo command: %w", err)
 		}
 
-		// Save events to event store
 		if err := u.eventStore.SaveEvents(ctx, todoList.GetAggregateID(), todoList.GetUncommittedEvents()); err != nil {
 			return fmt.Errorf("failed to save events: %w", err)
 		}

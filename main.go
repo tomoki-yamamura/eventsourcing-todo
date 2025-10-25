@@ -17,8 +17,6 @@ func main() {
 	fmt.Println("Starting Event Sourcing Todo Application...")
 
 	// DI Container setup
-	tx := setupTransaction()
-	eventStore := setupEventStore()
 	todoUseCase := usecase.NewTodoUseCase(tx, eventStore)
 	todoHandler := handler.NewTodoHandler(todoUseCase)
 	appRouter := router.NewRouter(todoHandler)
@@ -31,16 +29,4 @@ func main() {
 	fmt.Printf("Server starting on port %s\n", port)
 	
 	log.Fatal(http.ListenAndServe(port, mux))
-}
-
-func setupTransaction() repository.Transaction {
-	// TODO: Setup actual database connection
-	// For now, return mock transaction
-	return transaction.NewMockTransaction()
-}
-
-func setupEventStore() repository.EventStore {
-	// TODO: Setup actual event store (PostgreSQL, EventStore, etc.)
-	// For now, return mock event store
-	return eventstore.NewMockEventStore()
 }
