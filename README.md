@@ -149,16 +149,6 @@ Run tests:
 task test
 ```
 
-Run tests with coverage:
-```bash
-task test:coverage
-```
-
-Run integration tests:
-```bash
-task test:integration
-```
-
 ---
 
 ## Development
@@ -168,28 +158,6 @@ task test:integration
 Run linting:
 ```bash
 task lint
-```
-
-Format code:
-```bash
-task fmt
-```
-
-### Database Operations
-
-Create new migration:
-```bash
-task migrate:create -- migration_name
-```
-
-Check migration status:
-```bash
-task migrate:status
-```
-
-Reset database:
-```bash
-task migrate:reset
 ```
 
 ---
@@ -218,20 +186,6 @@ task migrate:reset
 ├── docker-compose.yaml   # Docker services
 └── Taskfile.yaml        # Task definitions
 ```
-
----
-
-## Features
-
-- ✅ **Event Sourcing**: All state changes are captured as immutable events
-- ✅ **CQRS**: Separate command and query models
-- ✅ **Optimistic Locking**: Prevents concurrent modification conflicts
-- ✅ **Clean Architecture**: Well-separated layers with dependency inversion
-- ✅ **Domain-Driven Design**: Rich domain models with business logic
-- ✅ **RESTful API**: Standard HTTP endpoints following REST conventions
-- ✅ **Database Migrations**: Version-controlled schema changes
-- ✅ **Dependency Injection**: Loose coupling between components
-- ✅ **Comprehensive Testing**: Unit and integration tests
 
 ---
 
