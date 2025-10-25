@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,7 +37,7 @@ func (e *eventStoreImpl) SaveEvents(ctx context.Context, aggregateID uuid.UUID, 
 			event_data, 
 			version, 
 			created_at
-		) VALUES ($1, $2, $3, $4, $5, $6)
+		) VALUES (?, ?, ?, ?, ?, ?)
 	`
 
 	for _, evt := range events {
@@ -54,11 +55,20 @@ func (e *eventStoreImpl) SaveEvents(ctx context.Context, aggregateID uuid.UUID, 
 			time.Now(),
 		)
 		if err != nil {
+			if isDuplicateKeyError(err) {
+				return fmt.Errorf("optimistic lock error: version conflict for aggregate %s version %d", 
+					aggregateID, evt.GetVersion())
+			}
 			return err
 		}
 	}
 
 	return nil
+}
+
+func isDuplicateKeyError(err error) bool {
+	return strings.Contains(err.Error(), "Duplicate entry") ||
+		   strings.Contains(err.Error(), "Error 1062")
 }
 
 func (e *eventStoreImpl) LoadEvents(ctx context.Context, aggregateID uuid.UUID) ([]event.Event, error) {
@@ -70,7 +80,7 @@ func (e *eventStoreImpl) LoadEvents(ctx context.Context, aggregateID uuid.UUID) 
 	query := `
 		SELECT event_id, event_type, event_data, version, created_at
 		FROM events 
-		WHERE aggregate_id = $1 
+		WHERE aggregate_id = ? 
 		ORDER BY version ASC
 	`
 

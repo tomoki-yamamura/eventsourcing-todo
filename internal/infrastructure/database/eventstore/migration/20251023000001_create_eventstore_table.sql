@@ -8,7 +8,7 @@ CREATE TABLE events (
     event_data JSON NOT NULL,
     version INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_aggregate_version (aggregate_id, version)
+    UNIQUE INDEX unique_aggregate_version (aggregate_id, version)
 );
 -- +goose StatementEnd
 
