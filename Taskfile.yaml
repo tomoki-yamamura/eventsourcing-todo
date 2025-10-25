@@ -30,12 +30,26 @@ tasks:
     desc: Run DB migrations using goose
     cmds:
       - |
-        goose -dir db/migrations mysql \
+        goose -dir internal/infrastructure/database/eventstore/migration mysql \
         "${MYSQL_USER}:${MYSQL_PASSWORD}@tcp(${MYSQL_HOST}:${MYSQL_PORT})/${MYSQL_DATABASE}?parseTime=true&charset=utf8mb4" up
 
   migrate:down:
     desc: Rollback last DB migration using goose
     cmds:
       - |
-        goose -dir db/migrations mysql \
+        goose -dir internal/infrastructure/database/eventstore/migration mysql \
         "${MYSQL_USER}:${MYSQL_PASSWORD}@tcp(${MYSQL_HOST}:${MYSQL_PORT})/${MYSQL_DATABASE}?parseTime=true&charset=utf8mb4" down
+
+  migrate:test:up:
+    desc: Run DB migrations for test database
+    cmds:
+      - |
+        goose -dir internal/infrastructure/database/eventstore/migration mysql \
+        "${MYSQL_USER}:${MYSQL_PASSWORD}@tcp(${MYSQL_HOST}:${MYSQL_PORT})/${MYSQL_TEST_DATABASE}?parseTime=true&charset=utf8mb4" up
+
+  migrate:test:down:
+    desc: Rollback test database migrations
+    cmds:
+      - |
+        goose -dir internal/infrastructure/database/eventstore/migration mysql \
+        "${MYSQL_USER}:${MYSQL_PASSWORD}@tcp(${MYSQL_HOST}:${MYSQL_PORT})/${MYSQL_TEST_DATABASE}?parseTime=true&charset=utf8mb4" down

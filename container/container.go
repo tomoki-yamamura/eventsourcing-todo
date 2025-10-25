@@ -7,6 +7,7 @@ import (
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/repository"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/client"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/eventstore"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/eventstore/deserializer"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/transaction"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase"
 )
@@ -18,8 +19,9 @@ type Container struct {
 	DatabaseClient repository.DatabaseClient
 
 	// Repository layer
-	Transaction repository.Transaction
-	EventStore  repository.EventStore
+	Transaction  repository.Transaction
+	EventStore   repository.EventStore
+	Deserializer repository.EventDeserializer
 
 	// Use case layer
 	TodoUseCase usecase.TodoUseCaseInterface
@@ -40,7 +42,8 @@ func (c *Container) Inject(ctx context.Context, cfg *config.Config) error {
 
 	// Repository layer
 	c.Transaction = transaction.NewTransaction(c.DatabaseClient.GetDB())
-	c.EventStore = eventstore.NewEventStore()
+	c.Deserializer = deserializer.NewEventDeserializer()
+	c.EventStore = eventstore.NewEventStore(c.Deserializer)
 
 	// Use case layer
 	c.TodoUseCase = usecase.NewTodoUseCase(c.Transaction, c.EventStore)

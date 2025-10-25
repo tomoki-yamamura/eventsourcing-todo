@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/repository"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/eventstore/deserializer"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/transaction"
 )
 
@@ -17,9 +16,9 @@ type eventStoreImpl struct {
 	deserializer repository.EventDeserializer
 }
 
-func NewEventStore() repository.EventStore {
+func NewEventStore(deserializer repository.EventDeserializer) repository.EventStore {
 	return &eventStoreImpl{
-		deserializer: deserializer.NewEventDeserializer(),
+		deserializer: deserializer,
 	}
 }
 
