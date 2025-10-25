@@ -9,6 +9,7 @@ import (
 
 type TodoAddedEvent struct {
 	AggregateID uuid.UUID
+	UserID      string
 	TodoText    value.TodoText
 	EventID     uuid.UUID
 	Timestamp   time.Time

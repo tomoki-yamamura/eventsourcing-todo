@@ -7,5 +7,6 @@ import (
 
 type AddTodoCommand struct {
 	AggregateID uuid.UUID
+	UserID      string
 	TodoText    value.TodoText
 }
