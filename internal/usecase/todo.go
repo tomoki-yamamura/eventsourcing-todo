@@ -17,7 +17,7 @@ import (
 
 type TodoUseCaseInterface interface {
 	CreateTodoList(ctx context.Context, input *input.CreateTodoListInput) (*output.CreateTodoListOutput, error)
-	AddTodo(ctx context.Context, input *input.AddTodoInput) error
+	AddTodo(ctx context.Context, input *input.AddTodoInput) (*output.AddTodoOutput, error)
 	GetTodoList(ctx context.Context, input *input.GetTodoListInput) (*output.GetTodoListOutput, error)
 }
 
@@ -69,21 +69,19 @@ func (u *TodoUseCase) CreateTodoList(ctx context.Context, input *input.CreateTod
 	return result, nil
 }
 
-func (u *TodoUseCase) AddTodo(ctx context.Context, input *input.AddTodoInput) error {
-	return u.addTodoWithRetry(ctx, input.AggregateID, input.UserID, input.Todo, 3)
-}
-
-func (u *TodoUseCase) addTodoWithRetry(ctx context.Context, aggregateID string, userID string, todo string, maxRetries int) error {
+func (u *TodoUseCase) AddTodo(ctx context.Context, input *input.AddTodoInput) (*output.AddTodoOutput, error) {
 	var lastErr error
+	maxRetries := 3
 
 	for attempt := range maxRetries {
+		var result *output.AddTodoOutput
 		err := u.tx.RWTx(ctx, func(ctx context.Context) error {
-			todoText, err := value.NewTodoText(todo)
+			todoText, err := value.NewTodoText(input.Todo)
 			if err != nil {
 				return err
 			}
 
-			aggregateUUID, err := uuid.Parse(aggregateID)
+			aggregateUUID, err := uuid.Parse(input.AggregateID)
 			if err != nil {
 				return err
 			}
@@ -102,7 +100,7 @@ func (u *TodoUseCase) addTodoWithRetry(ctx context.Context, aggregateID string, 
 				return err
 			}
 
-			userIDVO, err := value.NewUserID(userID)
+			userIDVO, err := value.NewUserID(input.UserID)
 			if err != nil {
 				return err
 			}
@@ -123,11 +121,24 @@ func (u *TodoUseCase) addTodoWithRetry(ctx context.Context, aggregateID string, 
 
 			todoList.MarkEventsAsCommitted()
 
+			items := make([]output.TodoItem, 0, len(todoList.GetItems()))
+			for _, item := range todoList.GetItems() {
+				items = append(items, output.TodoItem{
+					Text: item.Text.String(),
+				})
+			}
+
+			result = &output.AddTodoOutput{
+				AggregateID: todoList.GetAggregateID().String(),
+				UserID:      todoList.GetUserID().String(),
+				Items:       items,
+			}
+
 			return nil
 		})
 
 		if err == nil {
-			return nil
+			return result, nil
 		}
 
 		lastErr = err
@@ -138,10 +149,10 @@ func (u *TodoUseCase) addTodoWithRetry(ctx context.Context, aggregateID string, 
 			continue
 		}
 
-		return err
+		return nil, err
 	}
 
-	return fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
+	return nil, fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
 }
 
 func isOptimisticLockError(err error) bool {

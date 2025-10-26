@@ -72,18 +72,15 @@ func (h *TodoHandler) AddTodo(w http.ResponseWriter, r *http.Request) {
 		Todo:        req.Text,
 	}
 
-	if err := h.todoUseCase.AddTodo(r.Context(), usecaseInput); err != nil {
+	result, err := h.todoUseCase.AddTodo(r.Context(), usecaseInput)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	resp := response.AddTodoResponse{
-		Message: "Todo added successfully",
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
+	if err := json.NewEncoder(w).Encode(result); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
