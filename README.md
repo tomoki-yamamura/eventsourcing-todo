@@ -67,20 +67,25 @@ Start MySQL database:
 task docker:up
 ```
 
-Run database migrations:
+Wait for MySQL to be ready, then run database migrations:
 ```bash
 task migrate:up
 ```
 
-Grant test user permissions for test database (required once):
+Create test database and grant permissions:
 ```bash
 mysql -h 127.0.0.1 -P 23306 -u root -p${MYSQL_ROOT_PASSWORD} \
-  -e "GRANT ALL PRIVILEGES ON event_test.* TO 'test'@'%'; FLUSH PRIVILEGES;"
+  -e "CREATE DATABASE IF NOT EXISTS event_test; GRANT ALL PRIVILEGES ON event_test.* TO 'test'@'%'; FLUSH PRIVILEGES;"
 ```
 
-Setup both databases with migrations:
+Setup test database with migrations:
 ```bash
-task db:setup
+task migrate:test:up
+```
+
+Verify everything is working by running tests:
+```bash
+task test
 ```
 
 ---
