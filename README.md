@@ -72,6 +72,17 @@ Run database migrations:
 task migrate:up
 ```
 
+Grant test user permissions for test database (required once):
+```bash
+mysql -h 127.0.0.1 -P 23306 -u root -p${MYSQL_ROOT_PASSWORD} \
+  -e "GRANT ALL PRIVILEGES ON event_test.* TO 'test'@'%'; FLUSH PRIVILEGES;"
+```
+
+Setup both databases with migrations:
+```bash
+task db:setup
+```
+
 ---
 
 ## API Endpoints
