@@ -33,6 +33,79 @@ The application follows **Clean Architecture** principles with the following lay
 
 ---
 
+## Project Structure
+
+```
+.
+├── main.go                           # Application entry point
+├── Taskfile.yaml                     # Task automation (build, test, migration)
+├── docker-compose.yaml              # MySQL database setup
+├── .envrc.example                   # Environment configuration template
+├── go.mod                           # Go module dependencies
+├── container/                       # Dependency injection container
+├── docker/                         # Docker configuration files
+└── internal/                       # Private application code
+    ├── config/                     # Configuration management
+    ├── domain/                     # Domain layer (business logic)
+    │   ├── aggregate/              # Domain aggregates
+    │   │   ├── todo_list.go        # TodoListAggregate implementation
+    │   │   └── todo_list_test.go   # Aggregate unit tests
+    │   ├── command/                # Domain commands
+    │   │   ├── create_todo_list_command.go
+    │   │   └── add_todo_command.go
+    │   ├── entity/                 # Domain entities
+    │   │   └── todo_item.go        # TodoItem entity
+    │   ├── event/                  # Domain events
+    │   │   ├── event.go            # Event interface
+    │   │   ├── todo_list_created_event.go
+    │   │   └── todo_added_event.go
+    │   ├── repository/             # Repository interfaces
+    │   │   ├── event_store.go      # Event store interface
+    │   │   ├── transaction.go      # Transaction interface
+    │   │   └── database_client.go  # Database client interface
+    │   └── value/                  # Value objects
+    │       ├── user_id.go          # UserID value object with validation
+    │       ├── user_id_test.go     # UserID tests
+    │       ├── todo_text.go        # TodoText value object with validation
+    │       └── todo_text_test.go   # TodoText tests
+    ├── usecase/                    # Application layer (use cases)
+    │   ├── todo.go                 # Todo use case implementation
+    │   ├── input/                  # Use case input models
+    │   │   ├── create_todo_list_input.go
+    │   │   ├── add_todo_input.go
+    │   │   └── get_todo_list_input.go
+    │   └── output/                 # Use case output models
+    │       ├── create_todo_list_output.go
+    │       └── get_todo_list_output.go
+    └── infrastructure/             # Infrastructure layer
+        ├── database/               # Database implementations
+        │   ├── client/             # Database client implementation
+        │   ├── eventstore/         # Event store implementation
+        │   │   ├── event_store_impl.go      # EventStore implementation
+        │   │   ├── event_store_impl_test.go # EventStore integration tests
+        │   │   ├── migration/      # Database migration files
+        │   │   └── deserializer/   # Event deserializers
+        │   ├── transaction/        # Transaction management
+        │   └── testutil/          # Database test utilities
+        ├── handler/               # HTTP handlers
+        │   ├── todo_handler.go    # Todo REST API handlers
+        │   ├── request/           # HTTP request models
+        │   └── response/          # HTTP response models
+        └── router/                # HTTP routing configuration
+```
+
+### Key Features
+
+- **Value Objects**: UserID and TodoText with built-in validation
+- **Clean Architecture**: Strict separation of domain, use case, and infrastructure
+- **Event Sourcing**: All state changes captured as immutable events
+- **CQRS**: Command and query responsibility segregation
+- **Domain Rules**: Business logic like "max 3 todos per day" enforced in domain layer
+- **Optimistic Locking**: Prevents concurrent modification conflicts
+- **Transaction Management**: Flexible transaction control with retry logic
+
+---
+
 ## Requirements
 
 - `direnv`
