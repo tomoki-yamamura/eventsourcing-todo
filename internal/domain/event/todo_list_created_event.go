@@ -4,11 +4,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/value"
 )
 
 type TodoListCreatedEvent struct {
 	AggregateID uuid.UUID
-	UserID      string
+	UserID      value.UserID
 	EventID     uuid.UUID
 	Timestamp   time.Time
 	Version     int

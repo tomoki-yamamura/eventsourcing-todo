@@ -23,12 +23,6 @@ func TestTodoListAggregate_CreateTodoList(t *testing.T) {
 			expectedEvents:  1,
 			wantErr:         false,
 		},
-		"empty user ID": {
-			userID:          "",
-			expectedVersion: 0,
-			expectedEvents:  0,
-			wantErr:         false,
-		},
 	}
 
 	for name, tt := range tests {
@@ -37,12 +31,14 @@ func TestTodoListAggregate_CreateTodoList(t *testing.T) {
 
 			// Arrange
 			aggregate := NewTodoListAggregate()
+			userID, err := value.NewUserID(tt.userID)
+			require.NoError(t, err)
 			cmd := command.CreateTodoListCommand{
-				UserID: tt.userID,
+				UserID: userID,
 			}
 
 			// Act
-			err := aggregate.ExecuteCreateTodoListCommand(cmd)
+			err = aggregate.ExecuteCreateTodoListCommand(cmd)
 
 			// Assert
 			if tt.wantErr {
@@ -51,7 +47,7 @@ func TestTodoListAggregate_CreateTodoList(t *testing.T) {
 				require.NoError(t, err)
 				if tt.expectedEvents > 0 {
 					require.NotEqual(t, uuid.Nil, aggregate.GetAggregateID())
-					require.Equal(t, tt.userID, aggregate.GetUserID())
+					require.Equal(t, userID, aggregate.GetUserID())
 				}
 				require.Equal(t, tt.expectedVersion, aggregate.GetVersion())
 
@@ -91,13 +87,14 @@ func TestTodoListAggregate_ExecuteAddTodoCommand(t *testing.T) {
 			t.Parallel()
 
 			// Arrange
-			userID := "user123"
+			userID, err := value.NewUserID("user123")
+			require.NoError(t, err)
 			aggregate := NewTodoListAggregate()
 
 			createCmd := command.CreateTodoListCommand{
 				UserID: userID,
 			}
-			err := aggregate.ExecuteCreateTodoListCommand(createCmd)
+			err = aggregate.ExecuteCreateTodoListCommand(createCmd)
 			require.NoError(t, err)
 
 			todoText, err := value.NewTodoText(tt.todoText)
@@ -137,13 +134,13 @@ func TestTodoListAggregate_ExecuteAddTodoCommand_ExceedsLimit(t *testing.T) {
 		"add 4th todo exceeds limit": {
 			todosToAdd:         4,
 			expectedError:      "cannot add more than 3 todos per day",
-			expectedEventCount: 4, // Create + 3 Add events
+			expectedEventCount: 4,
 			wantErr:            true,
 		},
 		"add exactly 3 todos": {
 			todosToAdd:         3,
 			expectedError:      "",
-			expectedEventCount: 4, // Create + 3 Add events
+			expectedEventCount: 4,
 			wantErr:            false,
 		},
 	}
@@ -153,14 +150,15 @@ func TestTodoListAggregate_ExecuteAddTodoCommand_ExceedsLimit(t *testing.T) {
 			t.Parallel()
 
 			// Arrange
-			userID := "user123"
+			userID, err := value.NewUserID("user123")
+			require.NoError(t, err)
 			aggregate := NewTodoListAggregate()
 
 			// First create the todo list
 			createCmd := command.CreateTodoListCommand{
 				UserID: userID,
 			}
-			err := aggregate.ExecuteCreateTodoListCommand(createCmd)
+			err = aggregate.ExecuteCreateTodoListCommand(createCmd)
 			require.NoError(t, err)
 
 			var lastErr error

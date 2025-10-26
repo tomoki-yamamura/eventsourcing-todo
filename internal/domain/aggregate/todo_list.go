@@ -8,11 +8,12 @@ import (
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/command"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/entity"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/value"
 )
 
 type TodoListAggregate struct {
 	aggregateID       uuid.UUID
-	userID            string
+	userID            value.UserID
 	items             []*entity.TodoItem
 	version           int
 	uncommittedEvents []event.Event
@@ -29,7 +30,7 @@ func (a *TodoListAggregate) GetAggregateID() uuid.UUID {
 	return a.aggregateID
 }
 
-func (a *TodoListAggregate) GetUserID() string {
+func (a *TodoListAggregate) GetUserID() value.UserID {
 	return a.userID
 }
 
