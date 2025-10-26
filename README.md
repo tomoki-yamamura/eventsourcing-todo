@@ -125,10 +125,6 @@ Start the API server:
 ```bash
 task run
 ```
-or with environment variables:
-```bash
-HTTP_PORT=8080 MYSQL_PORT=23306 MYSQL_ROOT_PASSWORD=password MYSQL_PASSWORD=test MYSQL_DATABASE=event MYSQL_USER=test MYSQL_HOST=127.0.0.1 go run main.go
-```
 
 Once running, test the API:
 
