@@ -16,8 +16,8 @@ import (
 )
 
 type TodoUseCaseInterface interface {
-	CreateTodoList(ctx context.Context, userID string) (string, error)
-	AddTodo(ctx context.Context, aggregateID string, userID string, todo string) error
+	CreateTodoList(ctx context.Context, input *input.CreateTodoListInput) (*output.CreateTodoListOutput, error)
+	AddTodo(ctx context.Context, input *input.AddTodoInput) error
 	GetTodoList(ctx context.Context, input *input.GetTodoListInput) (*output.GetTodoListOutput, error)
 }
 
@@ -33,37 +33,44 @@ func NewTodoUseCase(tx repository.Transaction, eventStore repository.EventStore)
 	}
 }
 
-func (u *TodoUseCase) CreateTodoList(ctx context.Context, userID string) (string, error) {
-	var aggregateID string
+func (u *TodoUseCase) CreateTodoList(ctx context.Context, input *input.CreateTodoListInput) (*output.CreateTodoListOutput, error) {
+	var result *output.CreateTodoListOutput
 	err := u.tx.RWTx(ctx, func(ctx context.Context) error {
+		userID, err := value.NewUserID(input.UserID)
+		if err != nil {
+			return err
+		}
+
 		cmd := command.CreateTodoListCommand{
 			UserID: userID,
 		}
 
 		todoList := aggregate.NewTodoListAggregate()
 		if err := todoList.ExecuteCreateTodoListCommand(cmd); err != nil {
-			return fmt.Errorf("failed to create todo list: %w", err)
+			return err
 		}
 
-		aggregateID = todoList.GetAggregateID().String()
-
 		if err := u.eventStore.SaveEvents(ctx, todoList.GetAggregateID(), todoList.GetUncommittedEvents()); err != nil {
-			return fmt.Errorf("failed to save events: %w", err)
+			return err
 		}
 
 		todoList.MarkEventsAsCommitted()
 
+		result = &output.CreateTodoListOutput{
+			AggregateID: todoList.GetAggregateID().String(),
+		}
+
 		return nil
 	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return aggregateID, nil
+	return result, nil
 }
 
-func (u *TodoUseCase) AddTodo(ctx context.Context, aggregateID string, userID string, todo string) error {
-	return u.addTodoWithRetry(ctx, aggregateID, userID, todo, 3)
+func (u *TodoUseCase) AddTodo(ctx context.Context, input *input.AddTodoInput) error {
+	return u.addTodoWithRetry(ctx, input.AggregateID, input.UserID, input.Todo, 3)
 }
 
 func (u *TodoUseCase) addTodoWithRetry(ctx context.Context, aggregateID string, userID string, todo string, maxRetries int) error {
@@ -78,12 +85,12 @@ func (u *TodoUseCase) addTodoWithRetry(ctx context.Context, aggregateID string, 
 
 			aggregateUUID, err := uuid.Parse(aggregateID)
 			if err != nil {
-				return fmt.Errorf("invalid aggregate ID: %w", err)
+				return err
 			}
 
 			events, err := u.eventStore.LoadEvents(ctx, aggregateUUID)
 			if err != nil {
-				return fmt.Errorf("failed to load events: %w", err)
+				return err
 			}
 
 			if len(events) == 0 {
@@ -92,21 +99,26 @@ func (u *TodoUseCase) addTodoWithRetry(ctx context.Context, aggregateID string, 
 
 			todoList := aggregate.NewTodoListAggregate()
 			if err := todoList.Hydration(events); err != nil {
-				return fmt.Errorf("failed to hydrate aggregate: %w", err)
+				return err
+			}
+
+			userIDVO, err := value.NewUserID(userID)
+			if err != nil {
+				return err
 			}
 
 			cmd := command.AddTodoCommand{
 				AggregateID: aggregateUUID,
-				UserID:      userID,
+				UserID:      userIDVO,
 				TodoText:    todoText,
 			}
 
 			if err := todoList.ExecuteAddTodoCommand(cmd); err != nil {
-				return fmt.Errorf("failed to handle add todo command: %w", err)
+				return err
 			}
 
 			if err := u.eventStore.SaveEvents(ctx, todoList.GetAggregateID(), todoList.GetUncommittedEvents()); err != nil {
-				return fmt.Errorf("failed to save events: %w", err)
+				return err
 			}
 
 			todoList.MarkEventsAsCommitted()
@@ -142,12 +154,12 @@ func (u *TodoUseCase) GetTodoList(ctx context.Context, input *input.GetTodoListI
 	err := u.tx.RWTx(ctx, func(ctx context.Context) error {
 		aggregateUUID, err := uuid.Parse(input.AggregateID)
 		if err != nil {
-			return fmt.Errorf("invalid aggregate ID: %w", err)
+			return err
 		}
 
 		events, err := u.eventStore.LoadEvents(ctx, aggregateUUID)
 		if err != nil {
-			return fmt.Errorf("failed to load events: %w", err)
+			return err
 		}
 
 		if len(events) == 0 {
@@ -156,7 +168,7 @@ func (u *TodoUseCase) GetTodoList(ctx context.Context, input *input.GetTodoListI
 
 		todoList := aggregate.NewTodoListAggregate()
 		if err := todoList.Hydration(events); err != nil {
-			return fmt.Errorf("failed to hydrate aggregate: %w", err)
+			return err
 		}
 
 		items := make([]output.TodoItem, 0, len(todoList.GetItems()))
@@ -168,7 +180,7 @@ func (u *TodoUseCase) GetTodoList(ctx context.Context, input *input.GetTodoListI
 
 		result = &output.GetTodoListOutput{
 			AggregateID: todoList.GetAggregateID().String(),
-			UserID:      todoList.GetUserID(),
+			UserID:      todoList.GetUserID().String(),
 			Items:       items,
 		}
 
