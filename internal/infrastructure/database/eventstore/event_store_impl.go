@@ -3,6 +3,7 @@ package eventstore
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -12,6 +13,8 @@ import (
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/repository"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/transaction"
 )
+
+var ErrOptimisticLock = errors.New("optimistic lock error")
 
 type eventStoreImpl struct {
 	deserializer repository.EventDeserializer
@@ -56,8 +59,8 @@ func (e *eventStoreImpl) SaveEvents(ctx context.Context, aggregateID uuid.UUID, 
 		)
 		if err != nil {
 			if isDuplicateKeyError(err) {
-				return fmt.Errorf("optimistic lock error: version conflict for aggregate %s version %d",
-					aggregateID, evt.GetVersion())
+				return fmt.Errorf("version conflict for aggregate %s version %d: %w",
+					aggregateID, evt.GetVersion(), ErrOptimisticLock)
 			}
 			return err
 		}

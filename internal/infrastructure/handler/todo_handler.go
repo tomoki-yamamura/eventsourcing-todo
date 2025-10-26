@@ -33,14 +33,18 @@ func (h *TodoHandler) CreateTodoList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	aggregateID, err := h.todoUseCase.CreateTodoList(r.Context(), req.UserID)
+	usecaseInput := &input.CreateTodoListInput{
+		UserID: req.UserID,
+	}
+
+	result, err := h.todoUseCase.CreateTodoList(r.Context(), usecaseInput)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	resp := response.CreateTodoListResponse{
-		AggregateID: aggregateID,
+		AggregateID: result.AggregateID,
 		Message:     "Todo list created successfully",
 	}
 
@@ -62,17 +66,13 @@ func (h *TodoHandler) AddTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Text == "" {
-		http.Error(w, "text is required", http.StatusBadRequest)
-		return
+	usecaseInput := &input.AddTodoInput{
+		AggregateID: aggregateID,
+		UserID:      req.UserID,
+		Todo:        req.Text,
 	}
 
-	if req.UserID == "" {
-		http.Error(w, "user_id is required", http.StatusBadRequest)
-		return
-	}
-
-	if err := h.todoUseCase.AddTodo(r.Context(), aggregateID, req.UserID, req.Text); err != nil {
+	if err := h.todoUseCase.AddTodo(r.Context(), usecaseInput); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

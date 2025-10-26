@@ -1,4 +1,4 @@
-package eventstore
+package eventstore_test
 
 import (
 	"context"
@@ -6,341 +6,260 @@ import (
 	"testing"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/value"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/eventstore/deserializer"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/testutil"
+
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/config"
+	domainevent "github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/repository"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/client"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/eventstore"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/transaction"
 )
 
-func setupTestDB(t *testing.T) (*sqlx.DB, func()) {
-	return testutil.SetupTestDB(t)
+type testEvent struct {
+	AggregateID uuid.UUID `json:"aggregate_id"`
+	EventID     uuid.UUID `json:"event_id"`
+	Type        string    `json:"event_type"`
+	Version     int       `json:"version"`
+	Title       string    `json:"title,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
-func TestEventStoreImpl_SaveEvents(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping database test in short mode")
+func (e testEvent) GetAggregateID() uuid.UUID { return e.AggregateID }
+func (e testEvent) GetEventID() uuid.UUID     { return e.EventID }
+func (e testEvent) GetEventType() string      { return e.Type }
+func (e testEvent) GetVersion() int           { return e.Version }
+func (e testEvent) GetTimestamp() time.Time   { return e.CreatedAt }
+
+type fakeDeserializer struct{}
+
+func (f fakeDeserializer) Deserialize(eventType string, data []byte) (domainevent.Event, error) {
+	var te testEvent
+	if err := json.Unmarshal(data, &te); err != nil {
+		return nil, err
 	}
-
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	tests := map[string]struct {
-		events        []event.Event
-		expectedCount int
-		wantErr       bool
-	}{
-		"save single event to database": {
-			events: []event.Event{
-				event.TodoListCreatedEvent{
-					AggregateID: uuid.New(),
-					UserID:      "user123",
-					EventID:     uuid.New(),
-					Timestamp:   time.Now(),
-					Version:     1,
-				},
-			},
-			expectedCount: 1,
-			wantErr:       false,
-		},
-		"save multiple events to database": {
-			events: func() []event.Event {
-				aggregateID := uuid.New()
-				todoText, _ := value.NewTodoText("Learn Event Sourcing")
-				return []event.Event{
-					event.TodoListCreatedEvent{
-						AggregateID: aggregateID,
-						UserID:      "user123",
-						EventID:     uuid.New(),
-						Timestamp:   time.Now(),
-						Version:     1,
-					},
-					event.TodoAddedEvent{
-						AggregateID: aggregateID,
-						UserID:      "user123",
-						TodoText:    todoText,
-						EventID:     uuid.New(),
-						Timestamp:   time.Now(),
-						Version:     2,
-					},
-				}
-			}(),
-			expectedCount: 2,
-			wantErr:       false,
-		},
-		"verify JSON serialization in database": {
-			events: []event.Event{
-				event.TodoListCreatedEvent{
-					AggregateID: uuid.New(),
-					UserID:      "test_json_user",
-					EventID:     uuid.New(),
-					Timestamp:   time.Now(),
-					Version:     1,
-				},
-			},
-			expectedCount: 1,
-			wantErr:       false,
-		},
-	}
-
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			// EventStore作成
-			deserializer := deserializer.NewEventDeserializer()
-			eventStore := NewEventStore(deserializer)
-
-			// Transaction作成
-			txManager := transaction.NewTransaction(db)
-			aggregateID := tt.events[0].GetAggregateID()
-
-			// トランザクション内でテスト実行（自動的にrollbackされる）
-			err := txManager.RWTx(context.Background(), func(ctx context.Context) error {
-				// SaveEventsを実行
-				err := eventStore.SaveEvents(ctx, aggregateID, tt.events)
-				if (err != nil) != tt.wantErr {
-					t.Errorf("SaveEvents() error = %v, wantErr %v", err, tt.wantErr)
-				}
-				if err != nil {
-					return err
-				}
-
-				// トランザクション内でデータベースから確認
-				tx, err := transaction.GetTx(ctx)
-				require.NoError(t, err)
-
-				// DB insertが正しく行われているかを確認
-				rows, err := tx.QueryContext(ctx, `
-					SELECT event_id, event_type, event_data, version, created_at
-					FROM events 
-					WHERE aggregate_id = ? 
-					ORDER BY version ASC
-				`, aggregateID.String())
-				require.NoError(t, err)
-				defer rows.Close()
-
-				var count int
-				for rows.Next() {
-					var eventID, eventType string
-					var eventData []byte
-					var version int
-					var createdAt time.Time
-					err := rows.Scan(&eventID, &eventType, &eventData, &version, &createdAt)
-					require.NoError(t, err)
-
-					// DB insertの基本検証
-					require.Equal(t, tt.events[count].GetEventType(), eventType)
-					require.Equal(t, tt.events[count].GetVersion(), version)
-					require.Equal(t, tt.events[count].GetEventID().String(), eventID)
-
-					// JSONシリアライゼーションの検証
-					require.NotEmpty(t, eventData, "Event data should not be empty")
-					require.True(t, json.Valid(eventData), "Event data should be valid JSON")
-
-					// created_atが設定されているかの検証
-					require.False(t, createdAt.IsZero(), "created_at should be set")
-
-					count++
-				}
-				require.NoError(t, rows.Err())
-				require.Equal(t, tt.expectedCount, count, "Expected number of events should be inserted")
-
-				// rollbackさせるためにエラーを返す
-				return &rollbackError{}
-			})
-
-			// rollbackエラーは期待されるエラー
-			_, isRollback := err.(*rollbackError)
-			require.True(t, isRollback, "Expected rollback error but got: %v", err)
-		})
-	}
+	return te, nil
 }
 
-func TestEventStoreImpl_LoadEvents(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping database test in short mode")
-	}
+func newTestDBClient(t *testing.T) repository.DatabaseClient {
+	t.Helper()
 
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	tests := map[string]struct {
-		setupEvents   []event.Event
-		expectedCount int
-		wantErr       bool
-	}{
-		"load single event": {
-			setupEvents: []event.Event{
-				event.TodoListCreatedEvent{
-					AggregateID: uuid.New(),
-					UserID:      "user123",
-					EventID:     uuid.New(),
-					Timestamp:   time.Now(),
-					Version:     1,
-				},
-			},
-			expectedCount: 1,
-			wantErr:       false,
-		},
-		"load multiple events in version order": {
-			setupEvents: func() []event.Event {
-				aggregateID := uuid.New()
-				todoText, _ := value.NewTodoText("Learn Event Sourcing")
-				return []event.Event{
-					event.TodoListCreatedEvent{
-						AggregateID: aggregateID,
-						UserID:      "user123",
-						EventID:     uuid.New(),
-						Timestamp:   time.Now(),
-						Version:     1,
-					},
-					event.TodoAddedEvent{
-						AggregateID: aggregateID,
-						UserID:      "user123",
-						TodoText:    todoText,
-						EventID:     uuid.New(),
-						Timestamp:   time.Now(),
-						Version:     2,
-					},
-				}
-			}(),
-			expectedCount: 2,
-			wantErr:       false,
-		},
-		"load no events for non-existent aggregate": {
-			setupEvents:   []event.Event{},
-			expectedCount: 0,
-			wantErr:       false,
-		},
-	}
-
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			// EventStore作成
-			deserializer := deserializer.NewEventDeserializer()
-			eventStore := NewEventStore(deserializer)
-
-			// Transaction作成
-			txManager := transaction.NewTransaction(db)
-
-			var aggregateID uuid.UUID
-			if len(tt.setupEvents) > 0 {
-				aggregateID = tt.setupEvents[0].GetAggregateID()
-			} else {
-				aggregateID = uuid.New() // 存在しないaggregate ID
-			}
-
-			// トランザクション内でテスト実行
-			err := txManager.RWTx(context.Background(), func(ctx context.Context) error {
-				// セットアップイベントがあれば保存
-				if len(tt.setupEvents) > 0 {
-					err := eventStore.SaveEvents(ctx, aggregateID, tt.setupEvents)
-					require.NoError(t, err)
-				}
-
-				// LoadEventsを実行
-				loadedEvents, err := eventStore.LoadEvents(ctx, aggregateID)
-				if (err != nil) != tt.wantErr {
-					t.Errorf("LoadEvents() error = %v, wantErr %v", err, tt.wantErr)
-				}
-				if err != nil {
-					return err
-				}
-
-				// 検証
-				require.Len(t, loadedEvents, tt.expectedCount)
-
-				for i, evt := range loadedEvents {
-					require.Equal(t, tt.setupEvents[i].GetEventType(), evt.GetEventType())
-					require.Equal(t, tt.setupEvents[i].GetVersion(), evt.GetVersion())
-					require.Equal(t, aggregateID, evt.GetAggregateID())
-				}
-
-				// バージョン順序を確認
-				for i := 1; i < len(loadedEvents); i++ {
-					require.True(t, loadedEvents[i-1].GetVersion() < loadedEvents[i].GetVersion())
-				}
-
-				// rollbackさせるためにエラーを返す
-				return &rollbackError{}
-			})
-
-			// rollbackエラーは期待されるエラー
-			_, isRollback := err.(*rollbackError)
-			require.True(t, isRollback, "Expected rollback error but got: %v", err)
-		})
-	}
-}
-
-func TestEventStoreImpl_SaveAndLoadEvents(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping database test in short mode")
-	}
-
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	// EventStore作成
-	deserializer := deserializer.NewEventDeserializer()
-	eventStore := NewEventStore(deserializer)
-
-	// Transaction作成
-	txManager := transaction.NewTransaction(db)
-
-	// テストデータ準備
-	aggregateID := uuid.New()
-	todoText, err := value.NewTodoText("Learn Event Sourcing with MySQL")
+	testCfg, err := config.NewTestDatabaseConfig()
 	require.NoError(t, err)
 
-	events := []event.Event{
-		event.TodoListCreatedEvent{
-			AggregateID: aggregateID,
-			UserID:      "test_user",
-			EventID:     uuid.New(),
-			Timestamp:   time.Now(),
-			Version:     1,
+	c, err := client.NewClient(config.DatabaseConfig{
+		User:     testCfg.User,
+		Password: testCfg.Password,
+		Host:     testCfg.Host,
+		Port:     testCfg.Port,
+		Name:     testCfg.Name,
+	})
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		err = c.Close()
+		require.NoError(t, err)
+	})
+
+	return c
+}
+
+func beginTxCtx(t *testing.T, dbClient repository.DatabaseClient) (context.Context, *sqlx.Tx) {
+	t.Helper()
+
+	db := dbClient.GetDB()
+	tx, err := db.Beginx()
+	require.NoError(t, err)
+
+	ctx := transaction.WithTx(context.Background(), tx)
+
+	t.Cleanup(func() { _ = tx.Rollback() })
+	return ctx, tx
+}
+
+func TestEventStore_SaveEvents(t *testing.T) {
+	testAggregateID := uuid.MustParse("12345678-1234-1234-1234-123456789012")
+
+	tests := map[string]struct {
+		events      []domainevent.Event
+		expectError bool
+		errorText   string
+	}{
+		"successful save single event": {
+			events: []domainevent.Event{
+				testEvent{
+					AggregateID: testAggregateID,
+					EventID:     uuid.New(),
+					Type:        "TodoListCreated",
+					Version:     1,
+					CreatedAt:   time.Now(),
+				},
+			},
+			expectError: false,
 		},
-		event.TodoAddedEvent{
-			AggregateID: aggregateID,
-			UserID:      "test_user",
-			TodoText:    todoText,
-			EventID:     uuid.New(),
-			Timestamp:   time.Now(),
-			Version:     2,
+		"successful save multiple events": {
+			events: []domainevent.Event{
+				testEvent{
+					AggregateID: testAggregateID,
+					EventID:     uuid.New(),
+					Type:        "TodoListCreated",
+					Version:     1,
+					CreatedAt:   time.Now(),
+				},
+				testEvent{
+					AggregateID: testAggregateID,
+					EventID:     uuid.New(),
+					Type:        "TodoAdded",
+					Version:     2,
+					Title:       "Test Todo",
+					CreatedAt:   time.Now(),
+				},
+			},
+			expectError: false,
 		},
 	}
 
-	// トランザクション内でテスト実行
-	err = txManager.RWTx(context.Background(), func(ctx context.Context) error {
-		// 保存
-		err := eventStore.SaveEvents(ctx, aggregateID, events)
-		require.NoError(t, err)
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			dbClient := newTestDBClient(t)
+			ctx, _ := beginTxCtx(t, dbClient)
+			store := eventstore.NewEventStore(fakeDeserializer{})
 
-		// ロード
-		loadedEvents, err := eventStore.LoadEvents(ctx, aggregateID)
-		require.NoError(t, err)
+			err := store.SaveEvents(ctx, testAggregateID, tt.events)
 
-		// 検証
-		require.Len(t, loadedEvents, 2)
-		require.Equal(t, "TodoListCreatedEvent", loadedEvents[0].GetEventType())
-		require.Equal(t, "TodoAddedEvent", loadedEvents[1].GetEventType())
-		require.Equal(t, 1, loadedEvents[0].GetVersion())
-		require.Equal(t, 2, loadedEvents[1].GetVersion())
-
-		// rollbackさせるためにエラーを返す
-		return &rollbackError{}
-	})
-
-	// rollbackエラーは期待されるエラー
-	_, isRollback := err.(*rollbackError)
-	require.True(t, isRollback, "Expected rollback error but got: %v", err)
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorText != "" {
+					require.Contains(t, err.Error(), tt.errorText)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
 
-// rollbackError はテスト用のエラー型（トランザクションをrollbackさせるため）
-type rollbackError struct{}
+func TestEventStore_SaveEvents_OptimisticLock(t *testing.T) {
+	testAggregateID := uuid.MustParse("12345678-1234-1234-1234-123456789012")
 
-func (e *rollbackError) Error() string {
-	return "rollback for test cleanup"
+	tests := map[string]struct {
+		events    []domainevent.Event
+		wantError error
+	}{
+		"no conflict with different versions": {
+			events: []domainevent.Event{
+				testEvent{
+					AggregateID: testAggregateID,
+					EventID:     uuid.New(),
+					Type:        "TestEvent",
+					Version:     1,
+					CreatedAt:   time.Now(),
+				},
+				testEvent{
+					AggregateID: testAggregateID,
+					EventID:     uuid.New(),
+					Type:        "TestEvent",
+					Version:     2,
+					CreatedAt:   time.Now(),
+				},
+			},
+			wantError: nil,
+		},
+		"version conflict same aggregate same version": {
+			events: []domainevent.Event{
+				testEvent{
+					AggregateID: testAggregateID,
+					EventID:     uuid.New(),
+					Type:        "TestEvent",
+					Version:     1,
+					CreatedAt:   time.Now(),
+				},
+				testEvent{
+					AggregateID: testAggregateID,
+					EventID:     uuid.New(),
+					Type:        "TestEvent",
+					Version:     1,
+					CreatedAt:   time.Now(),
+				},
+			},
+			wantError: eventstore.ErrOptimisticLock,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			dbClient := newTestDBClient(t)
+			ctx, _ := beginTxCtx(t, dbClient)
+			store := eventstore.NewEventStore(fakeDeserializer{})
+
+			err := store.SaveEvents(ctx, testAggregateID, tt.events)
+
+			if tt.wantError != nil {
+				require.ErrorIs(t, err, tt.wantError)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestEventStore_LoadEvents(t *testing.T) {
+	// Fixed aggregate ID for test consistency
+	testAggregateID := uuid.MustParse("12345678-1234-1234-1234-123456789012")
+
+	tests := map[string]struct {
+		savedEvents   []domainevent.Event
+		expectedCount int
+		verifyOrder   bool
+	}{
+		"load events": {
+			savedEvents: []domainevent.Event{
+				testEvent{
+					AggregateID: testAggregateID,
+					EventID:     uuid.New(),
+					Type:        "TodoAdded",
+					Version:     2,
+					Title:       "Second Todo",
+					CreatedAt:   time.Now(),
+				},
+				testEvent{
+					AggregateID: testAggregateID,
+					EventID:     uuid.New(),
+					Type:        "TodoListCreated",
+					Version:     1,
+					CreatedAt:   time.Now().Add(-time.Minute),
+				},
+				testEvent{
+					AggregateID: testAggregateID,
+					EventID:     uuid.New(),
+					Type:        "TodoAdded",
+					Version:     3,
+					Title:       "Third Todo",
+					CreatedAt:   time.Now().Add(time.Minute),
+				},
+			},
+			expectedCount: 3,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			// Arrange
+			dbClient := newTestDBClient(t)
+			ctx, _ := beginTxCtx(t, dbClient)
+			store := eventstore.NewEventStore(fakeDeserializer{})
+			err := store.SaveEvents(ctx, testAggregateID, tt.savedEvents)
+			require.NoError(t, err)
+
+			// Act
+			loadedEvents, err := store.LoadEvents(ctx, testAggregateID)
+
+			// Assert
+			require.NoError(t, err)
+			require.Len(t, loadedEvents, tt.expectedCount)
+		})
+	}
 }

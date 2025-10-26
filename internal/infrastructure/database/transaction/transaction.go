@@ -22,7 +22,7 @@ func NewTransaction(db *sqlx.DB) repository.Transaction {
 }
 
 func (t *transaction) RWTx(ctx context.Context, fn func(ctx context.Context) error) error {
-	return t.runTx(ctx, sql.LevelSerializable, fn)
+	return t.runTx(ctx, sql.LevelRepeatableRead, fn)
 }
 
 func (t *transaction) runTx(ctx context.Context, level sql.IsolationLevel, fn func(ctx context.Context) error) error {
@@ -58,4 +58,8 @@ func GetTx(ctx context.Context) (*sqlx.Tx, error) {
 		return nil, errors.New("transaction not found in context")
 	}
 	return tx, nil
+}
+
+func WithTx(ctx context.Context, tx *sqlx.Tx) context.Context {
+	return context.WithValue(ctx, TxKey, tx)
 }
