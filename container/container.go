@@ -6,6 +6,7 @@ import (
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/config"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/repository"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/bus"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/client"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/eventstore"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/eventstore/deserializer"
@@ -19,21 +20,20 @@ type Container struct {
 	// Config
 	Cfg *config.Config
 
-	DatabaseClient repository.DatabaseClient
-
 	// Repository layer
 	Transaction  repository.Transaction
 	EventStore   repository.EventStore
 	Deserializer repository.EventDeserializer
 
-	// Event Bus and Projector
-	EventBus        bus.EventBus
-	TodoViewRepo    todo.TodoListViewRepository
-	TodoProjector   todo.TodoProjectorInterface
+	// Ports implementation
+	EventBus        ports.EventBus
+	TodoViewRepo    *todo.InMemoryTodoListViewRepository
+	TodoProjector   *todo.TodoProjector
 
 	// Use case layer (CQRS)
-	CommandUseCase commandUseCase.TodoCommandUseCaseInterface
-	QueryUseCase   queryUseCase.TodoQueryUseCaseInterface
+	TodoListCreateCommand commandUseCase.TodoListCreateCommandInterface
+	TodoAddItemCommand    commandUseCase.TodoAddItemCommandInterface
+	QueryUseCase          queryUseCase.TodoQueryUseCaseInterface
 }
 
 func NewContainer() *Container {
@@ -47,10 +47,9 @@ func (c *Container) Inject(ctx context.Context, cfg *config.Config) error {
 	if err != nil {
 		return err
 	}
-	c.DatabaseClient = databaseClient
 
 	// Repository layer
-	c.Transaction = transaction.NewTransaction(c.DatabaseClient.GetDB())
+	c.Transaction = transaction.NewTransaction(databaseClient.GetDB())
 	c.Deserializer = deserializer.NewEventDeserializer()
 	c.EventStore = eventstore.NewEventStore(c.Deserializer)
 
@@ -65,8 +64,9 @@ func (c *Container) Inject(ctx context.Context, cfg *config.Config) error {
 	}
 
 	// Use case layer (CQRS)
-	c.CommandUseCase = commandUseCase.NewTodoCommandUseCase(c.Transaction, c.EventStore, c.EventBus)
-	c.QueryUseCase = queryUseCase.NewTodoQueryUseCase(c.Transaction, c.EventStore, c.TodoProjector)
+	c.TodoListCreateCommand = commandUseCase.NewTodoListCreateCommand(c.Transaction, c.EventStore, c.EventBus)
+	c.TodoAddItemCommand = commandUseCase.NewTodoAddItemCommand(c.Transaction, c.EventStore, c.EventBus)
+	c.QueryUseCase = queryUseCase.NewTodoQueryUseCase(c.TodoViewRepo)
 
 	return nil
 }

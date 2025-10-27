@@ -30,7 +30,7 @@ func main() {
 	}
 
 	// Handler layer setup (CQRS)
-	commandHandler := command.NewTodoCommandHandler(cont.CommandUseCase)
+	commandHandler := command.NewTodoCommandHandler(cont.TodoListCreateCommand, cont.TodoAddItemCommand)
 	queryHandler := query.NewTodoQueryHandler(cont.QueryUseCase)
 	
 	// Router setup

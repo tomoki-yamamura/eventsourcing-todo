@@ -4,28 +4,29 @@ import (
 	"context"
 
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/bus"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/projector"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports"
 )
 
-type TodoProjectorInterface interface {
-	projector.Projector
-	GetList(aggregateID string) *TodoListView
-}
-
 type TodoProjector struct {
-	viewRepo TodoListViewRepository
+	viewRepo *InMemoryTodoListViewRepository
 	seen     map[string]struct{}
 }
 
-func NewTodoProjector(viewRepo TodoListViewRepository) TodoProjectorInterface {
+func NewTodoProjector(viewRepo *InMemoryTodoListViewRepository) *TodoProjector {
 	return &TodoProjector{
 		viewRepo: viewRepo,
 		seen:     make(map[string]struct{}),
 	}
 }
 
-func (p *TodoProjector) Start(ctx context.Context, eventBus bus.EventBus) error {
+// ports.EventSubscriber インターフェースを実装
+func (p *TodoProjector) Subscribe(handler func(context.Context, event.Event) error) error {
+	// この実装では直接handlerを使用しない（Start内で直接処理）
+	return nil
+}
+
+// ports.Projector インターフェースを実装
+func (p *TodoProjector) Start(ctx context.Context, eventBus ports.EventSubscriber) error {
 	return eventBus.Subscribe(func(ctx context.Context, e event.Event) error {
 		eventID := e.GetEventID().String()
 		if _, ok := p.seen[eventID]; ok {
@@ -45,17 +46,16 @@ func (p *TodoProjector) Start(ctx context.Context, eventBus bus.EventBus) error 
 	})
 }
 
-func (p *TodoProjector) GetList(aggregateID string) *TodoListView {
-	return p.viewRepo.Get(aggregateID)
-}
+// TodoProjector は ports.Projector インターフェースのみ実装
+// Query操作は InMemoryTodoListViewRepository を直接使用
 
-func (p *TodoProjector) applyToView(view *TodoListView, e event.Event) *TodoListView {
+func (p *TodoProjector) applyToView(view *TodoListViewDTO, e event.Event) *TodoListViewDTO {
 	switch evt := e.(type) {
 	case event.TodoListCreatedEvent:
-		return &TodoListView{
+		return &TodoListViewDTO{
 			AggregateID: evt.GetAggregateID().String(),
 			UserID:      evt.UserID.String(),
-			Items:       []TodoItemView{},
+			Items:       []TodoItemViewDTO{},
 			Version:     evt.GetVersion(),
 			UpdatedAt:   evt.GetTimestamp(),
 		}
@@ -69,13 +69,13 @@ func (p *TodoProjector) applyToView(view *TodoListView, e event.Event) *TodoList
 			return view // Already applied or out of order
 		}
 		
-		newItems := make([]TodoItemView, len(view.Items))
+		newItems := make([]TodoItemViewDTO, len(view.Items))
 		copy(newItems, view.Items)
-		newItems = append(newItems, TodoItemView{
+		newItems = append(newItems, TodoItemViewDTO{
 			Text: evt.TodoText.String(),
 		})
 		
-		return &TodoListView{
+		return &TodoListViewDTO{
 			AggregateID: view.AggregateID,
 			UserID:      view.UserID,
 			Items:       newItems,

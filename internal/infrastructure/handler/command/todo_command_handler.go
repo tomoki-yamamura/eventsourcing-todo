@@ -12,12 +12,14 @@ import (
 )
 
 type TodoCommandHandler struct {
-	commandUseCase command.TodoCommandUseCaseInterface
+	createCommand command.TodoListCreateCommandInterface
+	addCommand    command.TodoAddItemCommandInterface
 }
 
-func NewTodoCommandHandler(commandUseCase command.TodoCommandUseCaseInterface) *TodoCommandHandler {
+func NewTodoCommandHandler(createCommand command.TodoListCreateCommandInterface, addCommand command.TodoAddItemCommandInterface) *TodoCommandHandler {
 	return &TodoCommandHandler{
-		commandUseCase: commandUseCase,
+		createCommand: createCommand,
+		addCommand:    addCommand,
 	}
 }
 
@@ -37,15 +39,14 @@ func (h *TodoCommandHandler) CreateTodoList(w http.ResponseWriter, r *http.Reque
 		UserID: req.UserID,
 	}
 
-	result, err := h.commandUseCase.CreateTodoList(r.Context(), usecaseInput)
+	err := h.createCommand.Execute(r.Context(), usecaseInput)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	resp := response.CreateTodoListResponse{
-		AggregateID: result.AggregateID,
-		Message:     "Todo list created successfully",
+		Message: "Todo list created successfully",
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -72,7 +73,7 @@ func (h *TodoCommandHandler) AddTodo(w http.ResponseWriter, r *http.Request) {
 		Todo:        req.Text,
 	}
 
-	result, err := h.commandUseCase.AddTodo(r.Context(), usecaseInput)
+	err := h.addCommand.Execute(r.Context(), usecaseInput)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -80,8 +81,5 @@ func (h *TodoCommandHandler) AddTodo(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(result); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return
-	}
+	json.NewEncoder(w).Encode(map[string]string{"message": "Todo item added successfully"})
 }
