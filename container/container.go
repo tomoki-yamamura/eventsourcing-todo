@@ -10,7 +10,7 @@ import (
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/eventstore"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/eventstore/deserializer"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/transaction"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/projector"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/projector/todo"
 	commandUseCase "github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/command"
 	queryUseCase "github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query"
 )
@@ -27,8 +27,9 @@ type Container struct {
 	Deserializer repository.EventDeserializer
 
 	// Event Bus and Projector
-	EventBus  bus.EventBus
-	Projector *projector.InMemTodoProjector
+	EventBus        bus.EventBus
+	TodoViewRepo    todo.TodoListViewRepository
+	TodoProjector   todo.TodoProjectorInterface
 
 	// Use case layer (CQRS)
 	CommandUseCase commandUseCase.TodoCommandUseCaseInterface
@@ -55,16 +56,17 @@ func (c *Container) Inject(ctx context.Context, cfg *config.Config) error {
 
 	// Event Bus and Projector
 	c.EventBus = bus.NewInMemoryEventBus()
-	c.Projector = projector.NewInMemTodoProjector()
+	c.TodoViewRepo = todo.NewInMemoryTodoListViewRepository()
+	c.TodoProjector = todo.NewTodoProjector(c.TodoViewRepo)
 
 	// Start projector (subscribe to event bus)
-	if err := c.Projector.Start(ctx, c.EventBus); err != nil {
+	if err := c.TodoProjector.Start(ctx, c.EventBus); err != nil {
 		return err
 	}
 
 	// Use case layer (CQRS)
 	c.CommandUseCase = commandUseCase.NewTodoCommandUseCase(c.Transaction, c.EventStore, c.EventBus)
-	c.QueryUseCase = queryUseCase.NewTodoQueryUseCase(c.Transaction, c.EventStore, c.Projector)
+	c.QueryUseCase = queryUseCase.NewTodoQueryUseCase(c.Transaction, c.EventStore, c.TodoProjector)
 
 	return nil
 }

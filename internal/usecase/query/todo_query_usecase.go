@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/aggregate"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/repository"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/projector"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/projector/todo"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query/input"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query/output"
 )
@@ -19,10 +19,10 @@ type TodoQueryUseCaseInterface interface {
 type TodoQueryUseCase struct {
 	tx         repository.Transaction
 	eventStore repository.EventStore
-	projector  *projector.InMemTodoProjector
+	projector  todo.TodoProjectorInterface
 }
 
-func NewTodoQueryUseCase(tx repository.Transaction, eventStore repository.EventStore, projector *projector.InMemTodoProjector) TodoQueryUseCaseInterface {
+func NewTodoQueryUseCase(tx repository.Transaction, eventStore repository.EventStore, projector todo.TodoProjectorInterface) TodoQueryUseCaseInterface {
 	return &TodoQueryUseCase{
 		tx:         tx,
 		eventStore: eventStore,
