@@ -1,8 +1,7 @@
-package todo
+package dto
 
 import "time"
 
-// TodoListViewDTO - 読み取りモデル用DTO
 type TodoListViewDTO struct {
 	AggregateID string
 	UserID      string
@@ -11,7 +10,6 @@ type TodoListViewDTO struct {
 	UpdatedAt   time.Time
 }
 
-// TodoItemViewDTO - TodoItemの読み取りモデル用DTO
 type TodoItemViewDTO struct {
 	Text string
 }

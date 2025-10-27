@@ -28,7 +28,6 @@ func (b *InMemoryEventBus) Publish(ctx context.Context, events ...event.Event) e
 	return nil
 }
 
-func (b *InMemoryEventBus) Subscribe(handler func(context.Context, event.Event) error) error {
+func (b *InMemoryEventBus) Subscribe(handler func(context.Context, event.Event) error) {
 	b.handlers = append(b.handlers, handler)
-	return nil
 }

@@ -27,7 +27,7 @@ type Container struct {
 
 	// Ports implementation
 	EventBus      ports.EventBus
-	TodoViewRepo  ports.Query[*todo.TodoListViewDTO]
+	TodoViewRepo  ports.TodoListViewRepository
 	TodoProjector ports.Projector
 
 	// Use case layer (CQRS)
@@ -57,7 +57,7 @@ func (c *Container) Inject(ctx context.Context, cfg *config.Config) error {
 	c.EventBus = bus.NewInMemoryEventBus()
 	viewRepo := todo.NewInMemoryTodoListViewRepository()
 	c.TodoViewRepo = viewRepo
-	c.TodoProjector = todo.NewTodoProjector(viewRepo.(*todo.InMemoryTodoListViewRepository))
+	c.TodoProjector = todo.NewTodoProjector(viewRepo)
 
 	// Start projector (subscribe to event bus)
 	if err := c.TodoProjector.Start(ctx, c.EventBus); err != nil {

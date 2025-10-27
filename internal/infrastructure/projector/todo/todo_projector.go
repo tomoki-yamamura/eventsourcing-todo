@@ -5,26 +5,26 @@ import (
 
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query/dto"
 )
 
 type TodoProjectorImpl struct {
-	viewRepo *InMemoryTodoListViewRepository
+	viewRepo ports.TodoListViewRepository
 	seen     map[string]struct{}
 }
 
-func NewTodoProjector(viewRepo *InMemoryTodoListViewRepository) ports.Projector {
+func NewTodoProjector(viewRepo ports.TodoListViewRepository) ports.Projector {
 	return &TodoProjectorImpl{
 		viewRepo: viewRepo,
 		seen:     make(map[string]struct{}),
 	}
 }
 
-func (p *TodoProjectorImpl) Subscribe(handler func(context.Context, event.Event) error) error {
-	return nil
+func (p *TodoProjectorImpl) Subscribe(handler func(context.Context, event.Event) error) {
 }
 
 func (p *TodoProjectorImpl) Start(ctx context.Context, eventBus ports.EventSubscriber) error {
-	return eventBus.Subscribe(func(ctx context.Context, e event.Event) error {
+	eventBus.Subscribe(func(ctx context.Context, e event.Event) error {
 		eventID := e.GetEventID().String()
 		if _, ok := p.seen[eventID]; ok {
 			return nil
@@ -41,15 +41,16 @@ func (p *TodoProjectorImpl) Start(ctx context.Context, eventBus ports.EventSubsc
 
 		return nil
 	})
+	return nil
 }
 
-func (p *TodoProjectorImpl) applyToView(view *TodoListViewDTO, e event.Event) *TodoListViewDTO {
+func (p *TodoProjectorImpl) applyToView(view *dto.TodoListViewDTO, e event.Event) *dto.TodoListViewDTO {
 	switch evt := e.(type) {
 	case event.TodoListCreatedEvent:
-		return &TodoListViewDTO{
+		return &dto.TodoListViewDTO{
 			AggregateID: evt.GetAggregateID().String(),
 			UserID:      evt.UserID.String(),
-			Items:       []TodoItemViewDTO{},
+			Items:       []dto.TodoItemViewDTO{},
 			Version:     evt.GetVersion(),
 			UpdatedAt:   evt.GetTimestamp(),
 		}
@@ -62,13 +63,13 @@ func (p *TodoProjectorImpl) applyToView(view *TodoListViewDTO, e event.Event) *T
 			return view
 		}
 
-		newItems := make([]TodoItemViewDTO, len(view.Items))
+		newItems := make([]dto.TodoItemViewDTO, len(view.Items))
 		copy(newItems, view.Items)
-		newItems = append(newItems, TodoItemViewDTO{
+		newItems = append(newItems, dto.TodoItemViewDTO{
 			Text: evt.TodoText.String(),
 		})
 
-		return &TodoListViewDTO{
+		return &dto.TodoListViewDTO{
 			AggregateID: view.AggregateID,
 			UserID:      view.UserID,
 			Items:       newItems,

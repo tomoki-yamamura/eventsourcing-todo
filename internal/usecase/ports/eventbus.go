@@ -11,15 +11,10 @@ type EventPublisher interface {
 }
 
 type EventSubscriber interface {
-	Subscribe(handler func(context.Context, event.Event) error) error
+	Subscribe(handler func(context.Context, event.Event) error)
 }
 
 type EventBus interface {
 	EventPublisher
 	EventSubscriber
-}
-
-type Projector interface {
-	EventSubscriber
-	Start(ctx context.Context, eventBus EventSubscriber) error
 }

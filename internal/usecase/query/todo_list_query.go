@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/projector/todo"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query/input"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query/output"
@@ -15,10 +14,10 @@ type TodoListQueryInterface interface {
 }
 
 type TodoListQuery struct {
-	viewQuery ports.Query[*todo.TodoListViewDTO]
+	viewQuery ports.TodoListQuery
 }
 
-func NewTodoListQuery(viewQuery ports.Query[*todo.TodoListViewDTO]) TodoListQueryInterface {
+func NewTodoListQuery(viewQuery ports.TodoListQuery) TodoListQueryInterface {
 	return &TodoListQuery{
 		viewQuery: viewQuery,
 	}
