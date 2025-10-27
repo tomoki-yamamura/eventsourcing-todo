@@ -1,4 +1,4 @@
-package usecase
+package command
 
 import (
 	"context"
@@ -11,29 +11,31 @@ import (
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/command"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/repository"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/value"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/input"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/output"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/bus"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/command/input"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/command/output"
 )
 
-type TodoUseCaseInterface interface {
+type TodoCommandUseCaseInterface interface {
 	CreateTodoList(ctx context.Context, input *input.CreateTodoListInput) (*output.CreateTodoListOutput, error)
 	AddTodo(ctx context.Context, input *input.AddTodoInput) (*output.AddTodoOutput, error)
-	GetTodoList(ctx context.Context, input *input.GetTodoListInput) (*output.GetTodoListOutput, error)
 }
 
-type TodoUseCase struct {
+type TodoCommandUseCase struct {
 	tx         repository.Transaction
 	eventStore repository.EventStore
+	eventBus   bus.EventBus
 }
 
-func NewTodoUseCase(tx repository.Transaction, eventStore repository.EventStore) TodoUseCaseInterface {
-	return &TodoUseCase{
+func NewTodoCommandUseCase(tx repository.Transaction, eventStore repository.EventStore, eventBus bus.EventBus) TodoCommandUseCaseInterface {
+	return &TodoCommandUseCase{
 		tx:         tx,
 		eventStore: eventStore,
+		eventBus:   eventBus,
 	}
 }
 
-func (u *TodoUseCase) CreateTodoList(ctx context.Context, input *input.CreateTodoListInput) (*output.CreateTodoListOutput, error) {
+func (u *TodoCommandUseCase) CreateTodoList(ctx context.Context, input *input.CreateTodoListInput) (*output.CreateTodoListOutput, error) {
 	var result *output.CreateTodoListOutput
 	err := u.tx.RWTx(ctx, func(ctx context.Context) error {
 		userID, err := value.NewUserID(input.UserID)
@@ -54,6 +56,12 @@ func (u *TodoUseCase) CreateTodoList(ctx context.Context, input *input.CreateTod
 			return err
 		}
 
+		// Register after-commit publish
+		evs := todoList.GetUncommittedEvents()
+		u.tx.AfterCommit(func() error {
+			return u.eventBus.Publish(context.Background(), evs...)
+		})
+
 		todoList.MarkEventsAsCommitted()
 
 		result = &output.CreateTodoListOutput{
@@ -69,12 +77,12 @@ func (u *TodoUseCase) CreateTodoList(ctx context.Context, input *input.CreateTod
 	return result, nil
 }
 
-func (u *TodoUseCase) AddTodo(ctx context.Context, input *input.AddTodoInput) (*output.AddTodoOutput, error) {
-	var lastErr error
+func (u *TodoCommandUseCase) AddTodo(ctx context.Context, input *input.AddTodoInput) (*output.AddTodoOutput, error) {
+	var result *output.AddTodoOutput
 	maxRetries := 3
+	var lastErr error
 
 	for attempt := range maxRetries {
-		var result *output.AddTodoOutput
 		err := u.tx.RWTx(ctx, func(ctx context.Context) error {
 			todoText, err := value.NewTodoText(input.Todo)
 			if err != nil {
@@ -119,6 +127,11 @@ func (u *TodoUseCase) AddTodo(ctx context.Context, input *input.AddTodoInput) (*
 				return err
 			}
 
+			evs := todoList.GetUncommittedEvents()
+			u.tx.AfterCommit(func() error {
+				return u.eventBus.Publish(context.Background(), evs...)
+			})
+
 			todoList.MarkEventsAsCommitted()
 
 			items := make([]output.TodoItem, 0, len(todoList.GetItems()))
@@ -157,49 +170,4 @@ func (u *TodoUseCase) AddTodo(ctx context.Context, input *input.AddTodoInput) (*
 
 func isOptimisticLockError(err error) bool {
 	return strings.Contains(err.Error(), "optimistic lock error")
-}
-
-func (u *TodoUseCase) GetTodoList(ctx context.Context, input *input.GetTodoListInput) (*output.GetTodoListOutput, error) {
-	var result *output.GetTodoListOutput
-
-	err := u.tx.RWTx(ctx, func(ctx context.Context) error {
-		aggregateUUID, err := uuid.Parse(input.AggregateID)
-		if err != nil {
-			return err
-		}
-
-		events, err := u.eventStore.LoadEvents(ctx, aggregateUUID)
-		if err != nil {
-			return err
-		}
-
-		if len(events) == 0 {
-			return fmt.Errorf("todo list not found")
-		}
-
-		todoList := aggregate.NewTodoListAggregate()
-		if err := todoList.Hydration(events); err != nil {
-			return err
-		}
-
-		items := make([]output.TodoItem, 0, len(todoList.GetItems()))
-		for _, item := range todoList.GetItems() {
-			items = append(items, output.TodoItem{
-				Text: item.Text.String(),
-			})
-		}
-
-		result = &output.GetTodoListOutput{
-			AggregateID: todoList.GetAggregateID().String(),
-			UserID:      todoList.GetUserID().String(),
-			Items:       items,
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
 }

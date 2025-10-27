@@ -8,7 +8,8 @@ import (
 
 	"github.com/tomoki-yamamura/eventsourcing-todo/container"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/config"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/handler"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/handler/command"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/handler/query"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/router"
 )
 
@@ -28,11 +29,12 @@ func main() {
 		log.Fatalf("Failed to inject dependencies: %v", err)
 	}
 
-	// Infrastructure layer setup
-	todoHandler := handler.NewTodoHandler(cont.TodoUseCase)
-	appRouter := router.NewRouter(todoHandler)
-
-	// Setup routes
+	// Handler layer setup (CQRS)
+	commandHandler := command.NewTodoCommandHandler(cont.CommandUseCase)
+	queryHandler := query.NewTodoQueryHandler(cont.QueryUseCase)
+	
+	// Router setup
+	appRouter := router.NewRouter(commandHandler, queryHandler)
 	mux := appRouter.SetupRoutes()
 
 	// Start server
