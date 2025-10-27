@@ -241,28 +241,32 @@ task lint
     │   ├── repository/                  # Repository interfaces
     │   │   ├── event_store.go           # Event store interface
     │   │   ├── event_deserializer.go    # Event deserializer interface
-    │   │   ├── transaction.go           # Transaction interface
-    │   │   └── database_client.go       # Database client interface
+    │   │   └── transaction.go           # Transaction interface
     │   └── value/                       # Value objects
     │       ├── user_id.go               # UserID value object with validation
     │       ├── user_id_test.go          # UserID tests
     │       ├── todo_text.go             # TodoText value object with validation
-    │       └── todo_text_test.go        # TodoText tests
+    │       ├── todo_text_test.go        # TodoText tests
+    │       └── aggregate_id.go          # AggregateID value object
     ├── usecase/                         # Application layer (CQRS use cases)
     │   ├── command/                     # Command side (write operations)
     │   │   ├── input/                   # Command input models
     │   │   │   ├── create_todo_list_input.go
     │   │   │   └── add_todo_input.go
-    │   │   ├── output/                  # Command output models
-    │   │   │   ├── create_todo_list_output.go
-    │   │   │   └── add_todo_output.go
-    │   │   └── todo_command_usecase.go  # Command use case implementation
-    │   └── query/                       # Query side (read operations)
-    │       ├── input/                   # Query input models
-    │       │   └── get_todo_list_input.go
-    │       ├── output/                  # Query output models
-    │       │   └── get_todo_list_output.go
-    │       └── todo_query_usecase.go    # Query use case implementation
+    │   │   ├── todo_list_create_command.go  # TodoList creation command
+    │   │   └── todo_add_item_command.go     # TodoItem addition command
+    │   ├── query/                       # Query side (read operations)
+    │   │   ├── dto/                     # Data Transfer Objects
+    │   │   │   └── todo_list_view_dto.go # TodoList view DTOs
+    │   │   ├── input/                   # Query input models
+    │   │   │   └── get_todo_list_input.go
+    │   │   ├── output/                  # Query output models
+    │   │   │   └── get_todo_list_output.go
+    │   │   └── todo_list_query.go       # TodoList query implementation
+    │   └── ports/                       # Interface definitions
+    │       ├── eventbus.go              # Event bus interfaces
+    │       ├── projector.go             # Projector interface
+    │       └── todo_list_query.go       # TodoList query interfaces
     └── infrastructure/                  # Infrastructure layer
         ├── bus/                         # Event bus implementation
         │   └── eventbus.go              # In-memory event bus
@@ -282,22 +286,21 @@ task lint
         │   └── testutil/                # Database test utilities
         │       └── setup_test_db.go     # Test database setup
         ├── projector/                   # Read model projectors
-        │   ├── projector.go             # Base projector interface
         │   └── todo/                    # Todo-specific projector
         │       ├── todo_projector.go    # Todo projector implementation
-        │       ├── todo_view.go         # Todo view models and interfaces
         │       └── inmemory_repository.go # In-memory view repository
-        ├── handler/                     # HTTP handlers
+        ├── handler/                     # HTTP handlers (separated by responsibility)
         │   ├── command/                 # Command handlers (write operations)
-        │   │   └── todo_command_handler.go
+        │   │   ├── todo_list_create_command_handler.go  # TodoList creation
+        │   │   └── todo_add_item_command_handler.go     # TodoItem addition
         │   ├── query/                   # Query handlers (read operations)
-        │   │   └── todo_query_handler.go
+        │   │   └── todo_list_query_handler.go           # TodoList queries
         │   ├── request/                 # HTTP request models
         │   │   └── todo_request.go
         │   └── response/                # HTTP response models
         │       └── todo_response.go
         └── router/                      # HTTP routing configuration
-            └── router.go                # Router setup
+            └── router.go                # Router setup with separated handlers
 ```
 
 ---
