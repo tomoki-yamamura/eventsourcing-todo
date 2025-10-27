@@ -83,7 +83,7 @@ func (e *eventStoreImpl) LoadEvents(ctx context.Context, aggregateID uuid.UUID) 
 	query := `
 		SELECT event_id, event_type, event_data, version, created_at
 		FROM events 
-		WHERE aggregate_id = ? 
+		WHERE aggregate_id = ?
 		ORDER BY version ASC
 	`
 
