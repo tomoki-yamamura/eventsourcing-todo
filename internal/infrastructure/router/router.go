@@ -2,30 +2,31 @@ package router
 
 import (
 	"github.com/gorilla/mux"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/handler"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/handler/command"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/handler/query"
 )
 
 type Router struct {
-	todoHandler *handler.TodoHandler
+	createCommandHandler *command.TodoListCreateCommandHandler
+	addCommandHandler    *command.TodoAddItemCommandHandler
+	queryHandler         *query.TodoListQueryHandler
 }
 
-func NewRouter(todoHandler *handler.TodoHandler) *Router {
+func NewRouter(createCommandHandler *command.TodoListCreateCommandHandler, addCommandHandler *command.TodoAddItemCommandHandler, queryHandler *query.TodoListQueryHandler) *Router {
 	return &Router{
-		todoHandler: todoHandler,
+		createCommandHandler: createCommandHandler,
+		addCommandHandler:    addCommandHandler,
+		queryHandler:         queryHandler,
 	}
 }
 
 func (r *Router) SetupRoutes() *mux.Router {
 	router := mux.NewRouter()
 
-	// POST /todo-lists - Create new todo list
-	router.HandleFunc("/todo-lists", r.todoHandler.CreateTodoList).Methods("POST")
+	router.HandleFunc("/todo-lists", r.createCommandHandler.CreateTodoList).Methods("POST")
+	router.HandleFunc("/todo-lists/{aggregate_id}/todos", r.addCommandHandler.AddTodo).Methods("POST")
 
-	// GET /todo-lists/{aggregate_id}/todos - Get todos in the list
-	router.HandleFunc("/todo-lists/{aggregate_id}/todos", r.todoHandler.GetTodoList).Methods("GET")
-
-	// POST /todo-lists/{aggregate_id}/todos - Add todo to existing list
-	router.HandleFunc("/todo-lists/{aggregate_id}/todos", r.todoHandler.AddTodo).Methods("POST")
+	router.HandleFunc("/todo-lists/{aggregate_id}/todos", r.queryHandler.Query).Methods("GET")
 
 	return router
 }

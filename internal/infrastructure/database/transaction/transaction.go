@@ -14,18 +14,28 @@ type txKeyType string
 const TxKey txKeyType = "tx"
 
 type transaction struct {
-	db *sqlx.DB
+	db               *sqlx.DB
+	afterCommitHooks []func() error
 }
 
 func NewTransaction(db *sqlx.DB) repository.Transaction {
-	return &transaction{db: db}
+	return &transaction{
+		db:               db,
+		afterCommitHooks: make([]func() error, 0),
+	}
 }
 
 func (t *transaction) RWTx(ctx context.Context, fn func(ctx context.Context) error) error {
 	return t.runTx(ctx, sql.LevelRepeatableRead, fn)
 }
 
+func (t *transaction) AfterCommit(fn func() error) {
+	t.afterCommitHooks = append(t.afterCommitHooks, fn)
+}
+
 func (t *transaction) runTx(ctx context.Context, level sql.IsolationLevel, fn func(ctx context.Context) error) error {
+	t.afterCommitHooks = make([]func() error, 0)
+
 	tx, err := t.db.BeginTxx(ctx, &sql.TxOptions{Isolation: level})
 	if err != nil {
 		return err
@@ -49,6 +59,13 @@ func (t *transaction) runTx(ctx context.Context, level sql.IsolationLevel, fn fu
 	}
 
 	committed = true
+
+	for _, hook := range t.afterCommitHooks {
+		if err := hook(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

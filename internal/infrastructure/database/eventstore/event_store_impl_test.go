@@ -13,7 +13,6 @@ import (
 
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/config"
 	domainevent "github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/repository"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/client"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/eventstore"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/transaction"
@@ -44,7 +43,7 @@ func (f fakeDeserializer) Deserialize(eventType string, data []byte) (domaineven
 	return te, nil
 }
 
-func newTestDBClient(t *testing.T) repository.DatabaseClient {
+func newTestDBClient(t *testing.T) *client.Client {
 	t.Helper()
 
 	testCfg, err := config.NewTestDatabaseConfig()
@@ -67,7 +66,7 @@ func newTestDBClient(t *testing.T) repository.DatabaseClient {
 	return c
 }
 
-func beginTxCtx(t *testing.T, dbClient repository.DatabaseClient) (context.Context, *sqlx.Tx) {
+func beginTxCtx(t *testing.T, dbClient *client.Client) (context.Context, *sqlx.Tx) {
 	t.Helper()
 
 	db := dbClient.GetDB()

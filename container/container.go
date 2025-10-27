@@ -5,26 +5,35 @@ import (
 
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/config"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/repository"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/bus"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/client"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/eventstore"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/eventstore/deserializer"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/transaction"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/projector/todo"
+	commandUseCase "github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/command"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports"
+	queryUseCase "github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query"
 )
 
 type Container struct {
 	// Config
 	Cfg *config.Config
 
-	DatabaseClient repository.DatabaseClient
-
 	// Repository layer
 	Transaction  repository.Transaction
 	EventStore   repository.EventStore
 	Deserializer repository.EventDeserializer
 
-	// Use case layer
-	TodoUseCase usecase.TodoUseCaseInterface
+	// Ports implementation
+	EventBus      ports.EventBus
+	TodoViewRepo  ports.TodoListViewRepository
+	TodoProjector ports.Projector
+
+	// Use case layer (CQRS)
+	TodoListCreateCommand commandUseCase.TodoListCreateCommandInterface
+	TodoAddItemCommand    commandUseCase.TodoAddItemCommandInterface
+	QueryUseCase          queryUseCase.TodoListQueryInterface
 }
 
 func NewContainer() *Container {
@@ -38,15 +47,27 @@ func (c *Container) Inject(ctx context.Context, cfg *config.Config) error {
 	if err != nil {
 		return err
 	}
-	c.DatabaseClient = databaseClient
 
 	// Repository layer
-	c.Transaction = transaction.NewTransaction(c.DatabaseClient.GetDB())
+	c.Transaction = transaction.NewTransaction(databaseClient.GetDB())
 	c.Deserializer = deserializer.NewEventDeserializer()
 	c.EventStore = eventstore.NewEventStore(c.Deserializer)
 
-	// Use case layer
-	c.TodoUseCase = usecase.NewTodoUseCase(c.Transaction, c.EventStore)
+	// Event Bus and Projector
+	c.EventBus = bus.NewInMemoryEventBus()
+	viewRepo := todo.NewInMemoryTodoListViewRepository()
+	c.TodoViewRepo = viewRepo
+	c.TodoProjector = todo.NewTodoProjector(viewRepo)
+
+	// Start projector (subscribe to event bus)
+	if err := c.TodoProjector.Start(ctx, c.EventBus); err != nil {
+		return err
+	}
+
+	// Use case layer (CQRS)
+	c.TodoListCreateCommand = commandUseCase.NewTodoListCreateCommand(c.Transaction, c.EventStore, c.EventBus)
+	c.TodoAddItemCommand = commandUseCase.NewTodoAddItemCommand(c.Transaction, c.EventStore, c.EventBus)
+	c.QueryUseCase = queryUseCase.NewTodoListQuery(c.TodoViewRepo)
 
 	return nil
 }
