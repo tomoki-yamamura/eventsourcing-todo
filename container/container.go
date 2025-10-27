@@ -6,13 +6,13 @@ import (
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/config"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/repository"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/bus"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/client"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/eventstore"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/eventstore/deserializer"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/transaction"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/projector/todo"
 	commandUseCase "github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/command"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports"
 	queryUseCase "github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query"
 )
 
@@ -26,14 +26,14 @@ type Container struct {
 	Deserializer repository.EventDeserializer
 
 	// Ports implementation
-	EventBus        ports.EventBus
-	TodoViewRepo    *todo.InMemoryTodoListViewRepository
-	TodoProjector   *todo.TodoProjector
+	EventBus      ports.EventBus
+	TodoViewRepo  ports.Query[*todo.TodoListViewDTO]
+	TodoProjector *todo.TodoProjector
 
 	// Use case layer (CQRS)
 	TodoListCreateCommand commandUseCase.TodoListCreateCommandInterface
 	TodoAddItemCommand    commandUseCase.TodoAddItemCommandInterface
-	QueryUseCase          queryUseCase.TodoQueryUseCaseInterface
+	QueryUseCase          queryUseCase.TodoListQueryInterface
 }
 
 func NewContainer() *Container {
@@ -55,8 +55,9 @@ func (c *Container) Inject(ctx context.Context, cfg *config.Config) error {
 
 	// Event Bus and Projector
 	c.EventBus = bus.NewInMemoryEventBus()
-	c.TodoViewRepo = todo.NewInMemoryTodoListViewRepository()
-	c.TodoProjector = todo.NewTodoProjector(c.TodoViewRepo)
+	viewRepo := todo.NewInMemoryTodoListViewRepository()
+	c.TodoViewRepo = viewRepo
+	c.TodoProjector = todo.NewTodoProjector(viewRepo.(*todo.InMemoryTodoListViewRepository))
 
 	// Start projector (subscribe to event bus)
 	if err := c.TodoProjector.Start(ctx, c.EventBus); err != nil {
@@ -66,7 +67,7 @@ func (c *Container) Inject(ctx context.Context, cfg *config.Config) error {
 	// Use case layer (CQRS)
 	c.TodoListCreateCommand = commandUseCase.NewTodoListCreateCommand(c.Transaction, c.EventStore, c.EventBus)
 	c.TodoAddItemCommand = commandUseCase.NewTodoAddItemCommand(c.Transaction, c.EventStore, c.EventBus)
-	c.QueryUseCase = queryUseCase.NewTodoQueryUseCase(c.TodoViewRepo)
+	c.QueryUseCase = queryUseCase.NewTodoListQuery(c.TodoViewRepo)
 
 	return nil
 }

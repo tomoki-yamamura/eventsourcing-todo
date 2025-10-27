@@ -14,13 +14,13 @@ type txKeyType string
 const TxKey txKeyType = "tx"
 
 type transaction struct {
-	db              *sqlx.DB
+	db               *sqlx.DB
 	afterCommitHooks []func() error
 }
 
 func NewTransaction(db *sqlx.DB) repository.Transaction {
 	return &transaction{
-		db:              db,
+		db:               db,
 		afterCommitHooks: make([]func() error, 0),
 	}
 }

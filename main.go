@@ -30,11 +30,12 @@ func main() {
 	}
 
 	// Handler layer setup (CQRS)
-	commandHandler := command.NewTodoCommandHandler(cont.TodoListCreateCommand, cont.TodoAddItemCommand)
-	queryHandler := query.NewTodoQueryHandler(cont.QueryUseCase)
-	
+	createCommandHandler := command.NewTodoListCreateCommandHandler(cont.TodoListCreateCommand)
+	addCommandHandler := command.NewTodoAddItemCommandHandler(cont.TodoAddItemCommand)
+	queryHandler := query.NewTodoListQueryHandler(cont.QueryUseCase)
+
 	// Router setup
-	appRouter := router.NewRouter(commandHandler, queryHandler)
+	appRouter := router.NewRouter(createCommandHandler, addCommandHandler, queryHandler)
 	mux := appRouter.SetupRoutes()
 
 	// Start server

@@ -7,24 +7,26 @@ import (
 )
 
 type Router struct {
-	commandHandler *command.TodoCommandHandler
-	queryHandler   *query.TodoQueryHandler
+	createCommandHandler *command.TodoListCreateCommandHandler
+	addCommandHandler    *command.TodoAddItemCommandHandler
+	queryHandler         *query.TodoListQueryHandler
 }
 
-func NewRouter(commandHandler *command.TodoCommandHandler, queryHandler *query.TodoQueryHandler) *Router {
+func NewRouter(createCommandHandler *command.TodoListCreateCommandHandler, addCommandHandler *command.TodoAddItemCommandHandler, queryHandler *query.TodoListQueryHandler) *Router {
 	return &Router{
-		commandHandler: commandHandler,
-		queryHandler:   queryHandler,
+		createCommandHandler: createCommandHandler,
+		addCommandHandler:    addCommandHandler,
+		queryHandler:         queryHandler,
 	}
 }
 
 func (r *Router) SetupRoutes() *mux.Router {
 	router := mux.NewRouter()
 
-	router.HandleFunc("/todo-lists", r.commandHandler.CreateTodoList).Methods("POST")
-	router.HandleFunc("/todo-lists/{aggregate_id}/todos", r.commandHandler.AddTodo).Methods("POST")
+	router.HandleFunc("/todo-lists", r.createCommandHandler.CreateTodoList).Methods("POST")
+	router.HandleFunc("/todo-lists/{aggregate_id}/todos", r.addCommandHandler.AddTodo).Methods("POST")
 
-	router.HandleFunc("/todo-lists/{aggregate_id}/todos", r.queryHandler.GetTodoList).Methods("GET")
+	router.HandleFunc("/todo-lists/{aggregate_id}/todos", r.queryHandler.Query).Methods("GET")
 
 	return router
 }

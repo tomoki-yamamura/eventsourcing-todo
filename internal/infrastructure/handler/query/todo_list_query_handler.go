@@ -9,17 +9,17 @@ import (
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query/input"
 )
 
-type TodoQueryHandler struct {
-	queryUseCase query.TodoQueryUseCaseInterface
+type TodoListQueryHandler struct {
+	queryUseCase query.TodoListQueryInterface
 }
 
-func NewTodoQueryHandler(queryUseCase query.TodoQueryUseCaseInterface) *TodoQueryHandler {
-	return &TodoQueryHandler{
+func NewTodoListQueryHandler(queryUseCase query.TodoListQueryInterface) *TodoListQueryHandler {
+	return &TodoListQueryHandler{
 		queryUseCase: queryUseCase,
 	}
 }
 
-func (h *TodoQueryHandler) GetTodoList(w http.ResponseWriter, r *http.Request) {
+func (h *TodoListQueryHandler) Query(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	aggregateID := vars["aggregate_id"]
 
@@ -32,7 +32,7 @@ func (h *TodoQueryHandler) GetTodoList(w http.ResponseWriter, r *http.Request) {
 		AggregateID: aggregateID,
 	}
 
-	result, err := h.queryUseCase.GetTodoList(r.Context(), usecaseInput)
+	result, err := h.queryUseCase.Query(r.Context(), usecaseInput)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

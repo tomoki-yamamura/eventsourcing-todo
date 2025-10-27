@@ -36,12 +36,12 @@ func (p *TodoProjector) Start(ctx context.Context, eventBus ports.EventSubscribe
 
 		aggregateID := e.GetAggregateID().String()
 		currentView := p.viewRepo.Get(aggregateID)
-		
+
 		updatedView := p.applyToView(currentView, e)
 		if updatedView != nil {
 			return p.viewRepo.Save(aggregateID, updatedView)
 		}
-		
+
 		return nil
 	})
 }
@@ -63,18 +63,18 @@ func (p *TodoProjector) applyToView(view *TodoListViewDTO, e event.Event) *TodoL
 		if view == nil {
 			return nil // View not found, ignore
 		}
-		
+
 		// Check version to ensure safe application
 		if evt.GetVersion() <= view.Version {
 			return view // Already applied or out of order
 		}
-		
+
 		newItems := make([]TodoItemViewDTO, len(view.Items))
 		copy(newItems, view.Items)
 		newItems = append(newItems, TodoItemViewDTO{
 			Text: evt.TodoText.String(),
 		})
-		
+
 		return &TodoListViewDTO{
 			AggregateID: view.AggregateID,
 			UserID:      view.UserID,
@@ -83,6 +83,6 @@ func (p *TodoProjector) applyToView(view *TodoListViewDTO, e event.Event) *TodoL
 			UpdatedAt:   evt.GetTimestamp(),
 		}
 	}
-	
+
 	return view
 }
