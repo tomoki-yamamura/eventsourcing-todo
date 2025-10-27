@@ -49,7 +49,6 @@ func (u *TodoListCreateCommand) Execute(ctx context.Context, input *input.Create
 			return err
 		}
 
-		// Register after-commit publish
 		evs := todoList.GetUncommittedEvents()
 		u.tx.AfterCommit(func() error {
 			return u.eventBus.Publish(context.Background(), evs...)

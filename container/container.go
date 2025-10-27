@@ -28,7 +28,7 @@ type Container struct {
 	// Ports implementation
 	EventBus      ports.EventBus
 	TodoViewRepo  ports.Query[*todo.TodoListViewDTO]
-	TodoProjector *todo.TodoProjector
+	TodoProjector ports.Projector
 
 	// Use case layer (CQRS)
 	TodoListCreateCommand commandUseCase.TodoListCreateCommandInterface

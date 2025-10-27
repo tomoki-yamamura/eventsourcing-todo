@@ -7,26 +7,23 @@ import (
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports"
 )
 
-type TodoProjector struct {
+type TodoProjectorImpl struct {
 	viewRepo *InMemoryTodoListViewRepository
 	seen     map[string]struct{}
 }
 
-func NewTodoProjector(viewRepo *InMemoryTodoListViewRepository) *TodoProjector {
-	return &TodoProjector{
+func NewTodoProjector(viewRepo *InMemoryTodoListViewRepository) ports.Projector {
+	return &TodoProjectorImpl{
 		viewRepo: viewRepo,
 		seen:     make(map[string]struct{}),
 	}
 }
 
-// ports.EventSubscriber インターフェースを実装
-func (p *TodoProjector) Subscribe(handler func(context.Context, event.Event) error) error {
-	// この実装では直接handlerを使用しない（Start内で直接処理）
+func (p *TodoProjectorImpl) Subscribe(handler func(context.Context, event.Event) error) error {
 	return nil
 }
 
-// ports.Projector インターフェースを実装
-func (p *TodoProjector) Start(ctx context.Context, eventBus ports.EventSubscriber) error {
+func (p *TodoProjectorImpl) Start(ctx context.Context, eventBus ports.EventSubscriber) error {
 	return eventBus.Subscribe(func(ctx context.Context, e event.Event) error {
 		eventID := e.GetEventID().String()
 		if _, ok := p.seen[eventID]; ok {
@@ -46,10 +43,7 @@ func (p *TodoProjector) Start(ctx context.Context, eventBus ports.EventSubscribe
 	})
 }
 
-// TodoProjector は ports.Projector インターフェースのみ実装
-// Query操作は InMemoryTodoListViewRepository を直接使用
-
-func (p *TodoProjector) applyToView(view *TodoListViewDTO, e event.Event) *TodoListViewDTO {
+func (p *TodoProjectorImpl) applyToView(view *TodoListViewDTO, e event.Event) *TodoListViewDTO {
 	switch evt := e.(type) {
 	case event.TodoListCreatedEvent:
 		return &TodoListViewDTO{
@@ -61,12 +55,11 @@ func (p *TodoProjector) applyToView(view *TodoListViewDTO, e event.Event) *TodoL
 		}
 	case event.TodoAddedEvent:
 		if view == nil {
-			return nil // View not found, ignore
+			return nil
 		}
 
-		// Check version to ensure safe application
 		if evt.GetVersion() <= view.Version {
-			return view // Already applied or out of order
+			return view
 		}
 
 		newItems := make([]TodoItemViewDTO, len(view.Items))
