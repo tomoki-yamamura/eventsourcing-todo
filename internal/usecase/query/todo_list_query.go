@@ -24,7 +24,7 @@ func NewTodoListQuery(viewQuery ports.TodoListQuery) TodoListQueryInterface {
 }
 
 func (u *TodoListQuery) Query(ctx context.Context, input *input.GetTodoListInput) (*output.GetTodoListOutput, error) {
-	view := u.viewQuery.Get(input.AggregateID)
+	view := u.viewQuery.Get(ctx, input.AggregateID)
 	if view == nil {
 		return nil, fmt.Errorf("todo list not found")
 	}

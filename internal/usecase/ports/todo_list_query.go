@@ -1,12 +1,16 @@
 package ports
 
-import "github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query/dto"
+import (
+	"context"
+
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query/dto"
+)
 
 type TodoListQuery interface {
-	Get(aggregateID string) *dto.TodoListViewDTO
+	Get(ctx context.Context, aggregateID string) *dto.TodoListViewDTO
 }
 
 type TodoListViewRepository interface {
 	TodoListQuery
-	Save(id string, view *dto.TodoListViewDTO) error
+	Save(ctx context.Context, id string, view *dto.TodoListViewDTO) error
 }

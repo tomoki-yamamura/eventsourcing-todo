@@ -20,27 +20,24 @@ func NewTodoProjector(viewRepo ports.TodoListViewRepository) ports.Projector {
 	}
 }
 
-func (p *TodoProjectorImpl) Subscribe(handler func(context.Context, event.Event) error) {
+func (p *TodoProjectorImpl) Handle(ctx context.Context, e event.Event) error {
+	eventID := e.GetEventID().String()
+	if _, ok := p.seen[eventID]; ok {
+		return nil
+	}
+	p.seen[eventID] = struct{}{}
+
+	aggID := e.GetAggregateID().String()
+	current := p.viewRepo.Get(ctx, aggID)
+	updated := p.applyToView(current, e)
+	if updated != nil {
+		return p.viewRepo.Save(ctx, aggID, updated)
+	}
+	return nil
 }
 
-func (p *TodoProjectorImpl) Start(ctx context.Context, eventBus ports.EventSubscriber) error {
-	eventBus.Subscribe(func(ctx context.Context, e event.Event) error {
-		eventID := e.GetEventID().String()
-		if _, ok := p.seen[eventID]; ok {
-			return nil
-		}
-		p.seen[eventID] = struct{}{}
-
-		aggregateID := e.GetAggregateID().String()
-		currentView := p.viewRepo.Get(aggregateID)
-
-		updatedView := p.applyToView(currentView, e)
-		if updatedView != nil {
-			return p.viewRepo.Save(aggregateID, updatedView)
-		}
-
-		return nil
-	})
+func (p *TodoProjectorImpl) Start(ctx context.Context, bus ports.EventSubscriber) error {
+	bus.Subscribe(p.Handle)
 	return nil
 }
 

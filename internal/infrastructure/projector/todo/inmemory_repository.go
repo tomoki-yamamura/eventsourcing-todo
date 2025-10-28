@@ -1,6 +1,7 @@
 package todo
 
 import (
+	"context"
 	"sync"
 
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports"
@@ -18,7 +19,7 @@ func NewInMemoryTodoListViewRepository() ports.TodoListViewRepository {
 	}
 }
 
-func (r *InMemoryTodoListViewRepository) Get(aggregateID string) *dto.TodoListViewDTO {
+func (r *InMemoryTodoListViewRepository) Get(ctx context.Context, aggregateID string) *dto.TodoListViewDTO {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -30,7 +31,7 @@ func (r *InMemoryTodoListViewRepository) Get(aggregateID string) *dto.TodoListVi
 	return r.cloneView(view)
 }
 
-func (r *InMemoryTodoListViewRepository) Save(aggregateID string, view *dto.TodoListViewDTO) error {
+func (r *InMemoryTodoListViewRepository) Save(ctx context.Context, aggregateID string, view *dto.TodoListViewDTO) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
