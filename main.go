@@ -29,6 +29,10 @@ func main() {
 		log.Fatalf("Failed to inject dependencies: %v", err)
 	}
 
+	if err := cont.TodoProjector.Start(ctx, cont.EventBus); err != nil {
+		log.Fatalf("Failed to start projector: %v", err)
+	}
+
 	// Handler layer setup (CQRS)
 	createCommandHandler := command.NewTodoListCreateCommandHandler(cont.TodoListCreateCommand)
 	addCommandHandler := command.NewTodoAddItemCommandHandler(cont.TodoAddItemCommand)

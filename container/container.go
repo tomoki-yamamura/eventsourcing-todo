@@ -59,11 +59,6 @@ func (c *Container) Inject(ctx context.Context, cfg *config.Config) error {
 	c.TodoViewRepo = viewRepo
 	c.TodoProjector = todo.NewTodoProjector(viewRepo)
 
-	// Start projector (subscribe to event bus)
-	if err := c.TodoProjector.Start(ctx, c.EventBus); err != nil {
-		return err
-	}
-
 	// Use case layer (CQRS)
 	c.TodoListCreateCommand = commandUseCase.NewTodoListCreateCommand(c.Transaction, c.EventStore, c.EventBus)
 	c.TodoAddItemCommand = commandUseCase.NewTodoAddItemCommand(c.Transaction, c.EventStore, c.EventBus)
