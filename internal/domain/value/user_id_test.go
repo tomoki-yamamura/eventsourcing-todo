@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/errors"
 )
 
 func TestNewUserID(t *testing.T) {
@@ -26,26 +27,17 @@ func TestNewUserID(t *testing.T) {
 		"empty user ID": {
 			input:   "",
 			want:    UserID(""),
-			wantErr: DomainValidationError{
-				Field:   "user_id",
-				Message: "cannot be empty",
-			},
+			wantErr: errors.NewDomainError(errors.InvalidParameter, "user_id cannot be empty"),
 		},
 		"user ID with only spaces": {
 			input:   "   ",
 			want:    UserID(""),
-			wantErr: DomainValidationError{
-				Field:   "user_id",
-				Message: "cannot be empty",
-			},
+			wantErr: errors.NewDomainError(errors.InvalidParameter, "user_id cannot be empty"),
 		},
 		"too long user ID": {
 			input:   strings.Repeat("a", 129),
 			want:    UserID(""),
-			wantErr: DomainValidationError{
-				Field:   "user_id",
-				Message: "cannot exceed 128 characters",
-			},
+			wantErr: errors.NewDomainError(errors.InvalidParameter, "user_id cannot exceed 128 characters"),
 		},
 		"exactly 128 characters": {
 			input:   strings.Repeat("a", 128),

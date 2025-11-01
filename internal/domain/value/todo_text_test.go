@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/errors"
 )
 
 func TestNewTodoText(t *testing.T) {
@@ -23,17 +24,11 @@ func TestNewTodoText(t *testing.T) {
 		},
 		"empty string": {
 			input:   "",
-			wantErr: DomainValidationError{
-				Field:   "todo_text",
-				Message: "cannot be empty",
-			},
+			wantErr: errors.NewDomainError(errors.InvalidParameter, "todo_text cannot be empty"),
 		},
 		"only spaces": {
 			input:   "   ",
-			wantErr: DomainValidationError{
-				Field:   "todo_text",
-				Message: "cannot be empty",
-			},
+			wantErr: errors.NewDomainError(errors.InvalidParameter, "todo_text cannot be empty"),
 		},
 		"exactly 256 characters": {
 			input: strings.Repeat("a", 256),
@@ -41,10 +36,7 @@ func TestNewTodoText(t *testing.T) {
 		},
 		"over 256 characters": {
 			input:   strings.Repeat("a", 257),
-			wantErr: DomainValidationError{
-				Field:   "todo_text",
-				Message: "cannot exceed 256 characters",
-			},
+			wantErr: errors.NewDomainError(errors.InvalidParameter, "todo_text cannot exceed 256 characters"),
 		},
 	}
 

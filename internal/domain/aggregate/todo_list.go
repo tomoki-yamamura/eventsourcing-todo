@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/command"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/entity"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/errors"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/value"
 )
@@ -61,10 +62,7 @@ func (a *TodoListAggregate) Hydration(events []event.Event) error {
 
 func (a *TodoListAggregate) ExecuteCreateTodoListCommand(cmd command.CreateTodoListCommand) error {
 	if a.aggregateID != uuid.Nil {
-		return value.DomainValidationError{
-			Field:   "todo_list",
-			Message: "already exists",
-		}
+		return errors.NewDomainError(errors.AlreadyExist, "todo list already exists")
 	}
 
 	evt := event.TodoListCreatedEvent{
@@ -81,10 +79,7 @@ func (a *TodoListAggregate) ExecuteCreateTodoListCommand(cmd command.CreateTodoL
 func (a *TodoListAggregate) ExecuteAddTodoCommand(cmd command.AddTodoCommand) error {
 	// set a limit of only three items per day for Todo.
 	if len(a.items) >= 3 {
-		return value.DomainValidationError{
-			Field:   "todo_items",
-			Message: "cannot add more than 3 todos per day",
-		}
+		return errors.NewDomainError(errors.UnPemitedOperation, "cannot add more than 3 todos per day")
 	}
 
 	evt := event.TodoAddedEvent{

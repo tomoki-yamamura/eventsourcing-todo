@@ -35,7 +35,7 @@ func (u *TodoListCreateCommand) Execute(ctx context.Context, input *input.Create
 	var aggregateID string
 	var version int
 	var events []event.Event
-	
+
 	err := u.tx.RWTx(ctx, func(ctx context.Context) error {
 		userID, err := value.NewUserID(input.UserID)
 		if err != nil {
@@ -68,10 +68,9 @@ func (u *TodoListCreateCommand) Execute(ctx context.Context, input *input.Create
 
 		return nil
 	})
-	
 	if err != nil {
 		return out.PresentError(ctx, err)
 	}
-	
+
 	return out.PresentSuccess(ctx, aggregateID, version, events)
 }

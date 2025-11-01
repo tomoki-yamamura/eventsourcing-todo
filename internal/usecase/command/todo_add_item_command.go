@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/aggregate"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/command"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/errors"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/repository"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/value"
@@ -43,7 +44,7 @@ func (u *TodoAddItemCommand) Execute(ctx context.Context, input *input.AddTodoIn
 		var aggregateID string
 		var version int
 		var events []event.Event
-		
+
 		err := u.tx.RWTx(ctx, func(ctx context.Context) error {
 			todoText, err := value.NewTodoText(input.Todo)
 			if err != nil {
@@ -61,10 +62,7 @@ func (u *TodoAddItemCommand) Execute(ctx context.Context, input *input.AddTodoIn
 			}
 
 			if len(loadedEvents) == 0 {
-				return value.NotFoundError{
-					Resource: "todo list",
-					ID:       input.AggregateID,
-				}
+				return errors.NewDomainError(errors.QueryDataNotFoundError, "todo list not found")
 			}
 
 			todoList := aggregate.NewTodoListAggregate()

@@ -3,7 +3,7 @@ package query
 import (
 	"context"
 
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/value"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/errors"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/presenter"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/readmodelstore"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query/input"
@@ -27,10 +27,7 @@ func NewTodoListQuery(store readmodelstore.TodoListReadModelStore) TodoListQuery
 func (u *TodoListQuery) Execute(ctx context.Context, input *input.GetTodoListInput, out presenter.TodoListPresenter) error {
 	view := u.store.Get(ctx, input.AggregateID)
 	if view == nil {
-		notFoundErr := value.NotFoundError{
-			Resource: "todo list",
-			ID:       input.AggregateID,
-		}
+		notFoundErr := errors.NewDomainError(errors.QueryDataNotFoundError, "todo list not found")
 		return out.PresentNotFound(ctx, notFoundErr)
 	}
 
