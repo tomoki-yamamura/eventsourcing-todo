@@ -1,4 +1,4 @@
-package aggregate
+package aggregate_test
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/aggregate"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/command"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/value"
 )
@@ -30,7 +31,7 @@ func TestTodoListAggregate_CreateTodoList(t *testing.T) {
 			t.Parallel()
 
 			// Arrange
-			aggregate := NewTodoListAggregate()
+			agg := aggregate.NewTodoListAggregate()
 			userID, err := value.NewUserID(tt.userID)
 			require.NoError(t, err)
 			cmd := command.CreateTodoListCommand{
@@ -38,7 +39,7 @@ func TestTodoListAggregate_CreateTodoList(t *testing.T) {
 			}
 
 			// Act
-			err = aggregate.ExecuteCreateTodoListCommand(cmd)
+			err = agg.ExecuteCreateTodoListCommand(cmd)
 
 			// Assert
 			if tt.wantErr {
@@ -46,12 +47,12 @@ func TestTodoListAggregate_CreateTodoList(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				if tt.expectedEvents > 0 {
-					require.NotEqual(t, uuid.Nil, aggregate.GetAggregateID())
-					require.Equal(t, userID, aggregate.GetUserID())
+					require.NotEqual(t, uuid.Nil, agg.GetAggregateID())
+					require.Equal(t, userID, agg.GetUserID())
 				}
-				require.Equal(t, tt.expectedVersion, aggregate.GetVersion())
+				require.Equal(t, tt.expectedVersion, agg.GetVersion())
 
-				uncommittedEvents := aggregate.GetUncommittedEvents()
+				uncommittedEvents := agg.GetUncommittedEvents()
 				require.Len(t, uncommittedEvents, tt.expectedEvents)
 				if tt.expectedEvents > 0 {
 					require.Equal(t, "TodoListCreatedEvent", uncommittedEvents[0].GetEventType())
@@ -89,33 +90,33 @@ func TestTodoListAggregate_ExecuteAddTodoCommand(t *testing.T) {
 			// Arrange
 			userID, err := value.NewUserID("user123")
 			require.NoError(t, err)
-			aggregate := NewTodoListAggregate()
+			agg := aggregate.NewTodoListAggregate()
 
 			createCmd := command.CreateTodoListCommand{
 				UserID: userID,
 			}
-			err = aggregate.ExecuteCreateTodoListCommand(createCmd)
+			err = agg.ExecuteCreateTodoListCommand(createCmd)
 			require.NoError(t, err)
 
 			todoText, err := value.NewTodoText(tt.todoText)
 			require.NoError(t, err)
 			addCmd := command.AddTodoCommand{
-				AggregateID: aggregate.GetAggregateID(),
+				AggregateID: agg.GetAggregateID(),
 				UserID:      userID,
 				TodoText:    todoText,
 			}
 
 			// Act
-			err = aggregate.ExecuteAddTodoCommand(addCmd)
+			err = agg.ExecuteAddTodoCommand(addCmd)
 
 			// Assert
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, tt.expectedVersion, aggregate.GetVersion())
+				require.Equal(t, tt.expectedVersion, agg.GetVersion())
 
-				uncommittedEvents := aggregate.GetUncommittedEvents()
+				uncommittedEvents := agg.GetUncommittedEvents()
 				require.Len(t, uncommittedEvents, tt.expectedEvents)
 				require.Equal(t, "TodoListCreatedEvent", uncommittedEvents[0].GetEventType())
 				require.Equal(t, "TodoAddedEvent", uncommittedEvents[1].GetEventType())
@@ -127,19 +128,19 @@ func TestTodoListAggregate_ExecuteAddTodoCommand(t *testing.T) {
 func TestTodoListAggregate_ExecuteAddTodoCommand_ExceedsLimit(t *testing.T) {
 	tests := map[string]struct {
 		todosToAdd         int
-		expectedError      string
+		expectedError      error
 		expectedEventCount int
 		wantErr            bool
 	}{
 		"add 4th todo exceeds limit": {
 			todosToAdd:         4,
-			expectedError:      "cannot add more than 3 todos per day",
+			expectedError:      aggregate.ErrTooManyTodos,
 			expectedEventCount: 4,
 			wantErr:            true,
 		},
 		"add exactly 3 todos": {
 			todosToAdd:         3,
-			expectedError:      "",
+			expectedError:      nil,
 			expectedEventCount: 4,
 			wantErr:            false,
 		},
@@ -152,13 +153,13 @@ func TestTodoListAggregate_ExecuteAddTodoCommand_ExceedsLimit(t *testing.T) {
 			// Arrange
 			userID, err := value.NewUserID("user123")
 			require.NoError(t, err)
-			aggregate := NewTodoListAggregate()
+			agg := aggregate.NewTodoListAggregate()
 
 			// First create the todo list
 			createCmd := command.CreateTodoListCommand{
 				UserID: userID,
 			}
-			err = aggregate.ExecuteCreateTodoListCommand(createCmd)
+			err = agg.ExecuteCreateTodoListCommand(createCmd)
 			require.NoError(t, err)
 
 			var lastErr error
@@ -167,11 +168,11 @@ func TestTodoListAggregate_ExecuteAddTodoCommand_ExceedsLimit(t *testing.T) {
 				todoText, err := value.NewTodoText(fmt.Sprintf("Todo %d", i+1))
 				require.NoError(t, err)
 				cmd := command.AddTodoCommand{
-					AggregateID: aggregate.GetAggregateID(),
+					AggregateID: agg.GetAggregateID(),
 					UserID:      userID,
 					TodoText:    todoText,
 				}
-				lastErr = aggregate.ExecuteAddTodoCommand(cmd)
+				lastErr = agg.ExecuteAddTodoCommand(cmd)
 				if lastErr != nil {
 					break // Stop on first error
 				}
@@ -180,11 +181,11 @@ func TestTodoListAggregate_ExecuteAddTodoCommand_ExceedsLimit(t *testing.T) {
 			// Assert
 			if tt.wantErr {
 				require.Error(t, lastErr)
-				require.Contains(t, lastErr.Error(), tt.expectedError)
+				require.ErrorIs(t, lastErr, tt.expectedError)
 			} else {
 				require.NoError(t, lastErr)
 			}
-			require.Len(t, aggregate.GetUncommittedEvents(), tt.expectedEventCount)
+			require.Len(t, agg.GetUncommittedEvents(), tt.expectedEventCount)
 		})
 	}
 }
