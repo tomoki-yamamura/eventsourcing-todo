@@ -9,19 +9,32 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/value"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/errors"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/projector/todo"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/readmodelstore/dto"
 )
 
 type mockViewRepository struct {
-	data map[string]*dto.TodoListViewDTO
+	data      map[string]*dto.TodoListViewDTO
+	getError  error
+	saveError error
 }
 
-func (m *mockViewRepository) Get(ctx context.Context, aggregateID string) *dto.TodoListViewDTO {
-	return m.data[aggregateID]
+func (m *mockViewRepository) Get(ctx context.Context, aggregateID string) (*dto.TodoListViewDTO, error) {
+	if m.getError != nil {
+		return nil, m.getError
+	}
+	view := m.data[aggregateID]
+	if view == nil {
+		return nil, errors.NotFound.New("todo list not found")
+	}
+	return view, nil
 }
 
 func (m *mockViewRepository) Save(ctx context.Context, aggregateID string, view *dto.TodoListViewDTO) error {
+	if m.saveError != nil {
+		return m.saveError
+	}
 	m.data[aggregateID] = view
 	return nil
 }
@@ -31,6 +44,7 @@ func TestTodoProjectorImpl_Handle_TodoListCreatedEvent(t *testing.T) {
 		existingView *dto.TodoListViewDTO
 		event        event.TodoListCreatedEvent
 		want         *dto.TodoListViewDTO
+		wantError    error
 	}{
 		"should create new view for TodoListCreatedEvent": {
 			existingView: nil,
@@ -47,6 +61,7 @@ func TestTodoProjectorImpl_Handle_TodoListCreatedEvent(t *testing.T) {
 				Items:       []dto.TodoItemViewDTO{},
 				Version:     1,
 			},
+			wantError: nil,
 		},
 	}
 
@@ -65,13 +80,18 @@ func TestTodoProjectorImpl_Handle_TodoListCreatedEvent(t *testing.T) {
 			err := projector.Handle(context.Background(), tt.event)
 
 			// Assert
-			require.NoError(t, err)
-			saved := mockRepo.data[tt.event.AggregateID.String()]
-			require.NotNil(t, saved)
-			require.Equal(t, tt.want.AggregateID, saved.AggregateID)
-			require.Equal(t, tt.want.UserID, saved.UserID)
-			require.Equal(t, tt.want.Version, saved.Version)
-			require.Equal(t, len(tt.want.Items), len(saved.Items))
+			if tt.wantError != nil {
+				require.Error(t, err)
+				require.ErrorIs(t, err, tt.wantError)
+			} else {
+				require.NoError(t, err)
+				saved := mockRepo.data[tt.event.AggregateID.String()]
+				require.NotNil(t, saved)
+				require.Equal(t, tt.want.AggregateID, saved.AggregateID)
+				require.Equal(t, tt.want.UserID, saved.UserID)
+				require.Equal(t, tt.want.Version, saved.Version)
+				require.Equal(t, len(tt.want.Items), len(saved.Items))
+			}
 		})
 	}
 }
@@ -83,6 +103,7 @@ func TestTodoProjectorImpl_Handle_TodoAddedEvent(t *testing.T) {
 		existingView *dto.TodoListViewDTO
 		event        event.TodoAddedEvent
 		want         *dto.TodoListViewDTO
+		wantError    error
 	}{
 		"should add item to existing view": {
 			existingView: &dto.TodoListViewDTO{
@@ -107,8 +128,9 @@ func TestTodoProjectorImpl_Handle_TodoAddedEvent(t *testing.T) {
 				},
 				Version: 2,
 			},
+			wantError: nil,
 		},
-		"should return nil when view not found": {
+		"should return error when view not found": {
 			existingView: nil,
 			event: event.TodoAddedEvent{
 				AggregateID: aggregateID,
@@ -118,7 +140,8 @@ func TestTodoProjectorImpl_Handle_TodoAddedEvent(t *testing.T) {
 				Timestamp:   time.Now(),
 				Version:     2,
 			},
-			want: nil,
+			want:      nil,
+			wantError: errors.NotFound.New("todo list not found"),
 		},
 	}
 
@@ -137,21 +160,25 @@ func TestTodoProjectorImpl_Handle_TodoAddedEvent(t *testing.T) {
 			err := projector.Handle(context.Background(), tt.event)
 
 			// Assert
-			require.NoError(t, err)
-			saved := mockRepo.data[aggregateID.String()]
-			if tt.want == nil {
-				// View should remain unchanged (nil or existing)
-				if tt.existingView == nil {
-					require.Nil(t, saved)
-				}
+			if tt.wantError != nil {
+				require.Error(t, err)
+				require.ErrorIs(t, err, tt.wantError)
 			} else {
-				require.NotNil(t, saved)
-				require.Equal(t, tt.want.AggregateID, saved.AggregateID)
-				require.Equal(t, tt.want.UserID, saved.UserID)
-				require.Equal(t, tt.want.Version, saved.Version)
-				require.Equal(t, len(tt.want.Items), len(saved.Items))
-				if len(tt.want.Items) > 0 {
-					require.Equal(t, tt.want.Items[0].Text, saved.Items[0].Text)
+				require.NoError(t, err)
+				saved := mockRepo.data[aggregateID.String()]
+				if tt.want == nil {
+					if tt.existingView == nil {
+						require.Nil(t, saved)
+					}
+				} else {
+					require.NotNil(t, saved)
+					require.Equal(t, tt.want.AggregateID, saved.AggregateID)
+					require.Equal(t, tt.want.UserID, saved.UserID)
+					require.Equal(t, tt.want.Version, saved.Version)
+					require.Equal(t, len(tt.want.Items), len(saved.Items))
+					if len(tt.want.Items) > 0 {
+						require.Equal(t, tt.want.Items[0].Text, saved.Items[0].Text)
+					}
 				}
 			}
 		})

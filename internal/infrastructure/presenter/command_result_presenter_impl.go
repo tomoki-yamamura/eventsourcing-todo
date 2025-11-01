@@ -2,11 +2,10 @@ package presenter
 
 import (
 	"context"
-	"errors"
 	"time"
 
-	domainErrors "github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/errors"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/errors"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/presenter/viewmodel"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/presenter"
 )
@@ -54,20 +53,14 @@ func (p *CommandResultPresenterImpl) PresentError(ctx context.Context, err error
 }
 
 func (p *CommandResultPresenterImpl) determineStatusCode(err error) int {
-	var domainErr *domainErrors.DomainError
-	if errors.As(err, &domainErr) {
-		switch domainErr.GetType() {
-		case domainErrors.InvalidParameter:
-			return 422
-		case domainErrors.AlreadyExist:
-			return 409
-		case domainErrors.UnPemitedOperation:
-			return 403
-		case domainErrors.QueryDataNotFoundError:
-			return 404
-		default:
-			return 500
-		}
+	if errors.IsCode(err, errors.InvalidParameter) {
+		return 422
+	}
+	if errors.IsCode(err, errors.NotFound) {
+		return 404
+	}
+	if errors.IsCode(err, errors.OptimisticLock) {
+		return 409
 	}
 	return 500
 }

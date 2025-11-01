@@ -3,7 +3,6 @@ package eventstore_test
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"testing"
 	"time"
 
@@ -14,7 +13,7 @@ import (
 
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/config"
 	domainevent "github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
-	appErrors "github.com/tomoki-yamamura/eventsourcing-todo/internal/errors"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/errors"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/client"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/eventstore"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/transaction"
@@ -147,8 +146,8 @@ func TestEventStore_SaveEvents_OptimisticLock(t *testing.T) {
 	testAggregateID := uuid.MustParse("12345678-1234-1234-1234-123456789012")
 
 	tests := map[string]struct {
-		events             []domainevent.Event
-		expectOptimisticLock bool
+		events    []domainevent.Event
+		wantError error
 	}{
 		"no conflict with different versions": {
 			events: []domainevent.Event{
@@ -167,7 +166,7 @@ func TestEventStore_SaveEvents_OptimisticLock(t *testing.T) {
 					CreatedAt:   time.Now(),
 				},
 			},
-			expectOptimisticLock: false,
+			wantError: nil,
 		},
 		"version conflict same aggregate same version": {
 			events: []domainevent.Event{
@@ -186,7 +185,7 @@ func TestEventStore_SaveEvents_OptimisticLock(t *testing.T) {
 					CreatedAt:   time.Now(),
 				},
 			},
-			expectOptimisticLock: true,
+			wantError: errors.OptimisticLock.New("version conflict"),
 		},
 	}
 
@@ -198,11 +197,9 @@ func TestEventStore_SaveEvents_OptimisticLock(t *testing.T) {
 
 			err := store.SaveEvents(ctx, testAggregateID, tt.events)
 
-			if tt.expectOptimisticLock {
+			if tt.wantError != nil {
 				require.Error(t, err)
-				var appErr *appErrors.Error
-				require.True(t, errors.As(err, &appErr))
-				require.Equal(t, appErrors.OptimisticLock, appErr.ErrCode)
+				require.ErrorIs(t, err, tt.wantError)
 			} else {
 				require.NoError(t, err)
 			}
@@ -215,11 +212,13 @@ func TestEventStore_LoadEvents(t *testing.T) {
 	testAggregateID := uuid.MustParse("12345678-1234-1234-1234-123456789012")
 
 	tests := map[string]struct {
+		aggregateID   uuid.UUID
 		savedEvents   []domainevent.Event
 		expectedCount int
-		verifyOrder   bool
+		wantError     error
 	}{
-		"load events": {
+		"load existing events": {
+			aggregateID: testAggregateID,
 			savedEvents: []domainevent.Event{
 				testEvent{
 					AggregateID: testAggregateID,
@@ -246,6 +245,13 @@ func TestEventStore_LoadEvents(t *testing.T) {
 				},
 			},
 			expectedCount: 3,
+			wantError:     nil,
+		},
+		"load non-existent aggregate": {
+			aggregateID:   uuid.MustParse("99999999-9999-9999-9999-999999999999"),
+			savedEvents:   []domainevent.Event{},
+			expectedCount: 0,
+			wantError:     errors.NotFound.New("todo list not found"),
 		},
 	}
 
@@ -255,15 +261,22 @@ func TestEventStore_LoadEvents(t *testing.T) {
 			dbClient := newTestDBClient(t)
 			ctx, _ := beginTxCtx(t, dbClient)
 			store := eventstore.NewEventStore(fakeDeserializer{})
-			err := store.SaveEvents(ctx, testAggregateID, tt.savedEvents)
-			require.NoError(t, err)
+			if len(tt.savedEvents) > 0 {
+				err := store.SaveEvents(ctx, testAggregateID, tt.savedEvents)
+				require.NoError(t, err)
+			}
 
 			// Act
-			loadedEvents, err := store.LoadEvents(ctx, testAggregateID)
+			loadedEvents, err := store.LoadEvents(ctx, tt.aggregateID)
 
 			// Assert
-			require.NoError(t, err)
-			require.Len(t, loadedEvents, tt.expectedCount)
+			if tt.wantError != nil {
+				require.Error(t, err)
+				require.ErrorIs(t, err, tt.wantError)
+			} else {
+				require.NoError(t, err)
+				require.Len(t, loadedEvents, tt.expectedCount)
+			}
 		})
 	}
 }

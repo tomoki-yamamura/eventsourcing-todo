@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/errors"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/readmodelstore"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/readmodelstore/dto"
 )
@@ -19,16 +20,16 @@ func NewInMemoryTodoListViewRepository() readmodelstore.TodoListReadModelStore {
 	}
 }
 
-func (r *InMemoryTodoListViewRepository) Get(ctx context.Context, aggregateID string) *dto.TodoListViewDTO {
+func (r *InMemoryTodoListViewRepository) Get(ctx context.Context, aggregateID string) (*dto.TodoListViewDTO, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	view := r.data[aggregateID]
 	if view == nil {
-		return nil
+		return nil, errors.NotFound.New("todo list not found")
 	}
 
-	return r.cloneView(view)
+	return r.cloneView(view), nil
 }
 
 func (r *InMemoryTodoListViewRepository) Save(ctx context.Context, aggregateID string, view *dto.TodoListViewDTO) error {

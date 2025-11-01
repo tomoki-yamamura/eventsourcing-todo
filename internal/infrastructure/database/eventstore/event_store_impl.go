@@ -16,7 +16,6 @@ import (
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/transaction"
 )
 
-
 type eventStoreImpl struct {
 	deserializer repository.EventDeserializer
 }
@@ -72,7 +71,7 @@ func (e *eventStoreImpl) SaveEvents(ctx context.Context, aggregateID uuid.UUID, 
 func isDuplicateKeyError(err error) bool {
 	// MySQL error 1062 = ER_DUP_ENTRY
 	if errors.Is(err, &mysql.MySQLError{Number: 1062}) {
-			return true
+		return true
 	}
 	msg := strings.ToLower(err.Error())
 	return strings.Contains(msg, "duplicate") || strings.Contains(msg, "constraint failed")

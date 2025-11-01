@@ -29,7 +29,10 @@ func (p *TodoProjectorImpl) Handle(ctx context.Context, e event.Event) error {
 	p.seen[eventID] = struct{}{}
 
 	aggID := e.GetAggregateID().String()
-	current := p.viewRepo.Get(ctx, aggID)
+	current, err := p.viewRepo.Get(ctx, aggID)
+	if err != nil {
+		return err
+	}
 	updated := p.applyToView(current, e)
 	if updated != nil {
 		return p.viewRepo.Save(ctx, aggID, updated)

@@ -7,6 +7,6 @@ import (
 )
 
 type TodoListReadModelStore interface {
-	Get(ctx context.Context, aggregateID string) *dto.TodoListViewDTO
+	Get(ctx context.Context, aggregateID string) (*dto.TodoListViewDTO, error)
 	Save(ctx context.Context, aggregateID string, view *dto.TodoListViewDTO) error
 }

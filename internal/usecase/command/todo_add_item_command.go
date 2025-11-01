@@ -95,7 +95,6 @@ func (u *TodoAddItemCommand) Execute(ctx context.Context, input *input.AddTodoIn
 
 			return nil
 		})
-
 		if err != nil {
 			if errors.IsCode(err, errors.OptimisticLock) && attempt < maxRetries-1 {
 				waitTime := time.Duration(attempt+1) * 10 * time.Millisecond

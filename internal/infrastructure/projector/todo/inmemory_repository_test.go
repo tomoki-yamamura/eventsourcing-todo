@@ -1,12 +1,13 @@
-package todo
+package todo_test
 
 import (
 	"context"
-	"maps"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/errors"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/projector/todo"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/readmodelstore/dto"
 )
 
@@ -15,6 +16,7 @@ func TestInMemoryTodoListViewRepository_Get(t *testing.T) {
 		existingData map[string]*dto.TodoListViewDTO
 		aggregateID  string
 		want         *dto.TodoListViewDTO
+		wantError    error
 	}{
 		"should return existing item": {
 			existingData: map[string]*dto.TodoListViewDTO{
@@ -38,28 +40,35 @@ func TestInMemoryTodoListViewRepository_Get(t *testing.T) {
 				Version: 1,
 			},
 		},
-		"should return nil when aggregateID not found": {
+		"should return error when aggregateID not found": {
 			existingData: map[string]*dto.TodoListViewDTO{},
 			aggregateID:  "non-existing",
 			want:         nil,
+			wantError:    errors.NotFound.New("todo list not found"),
 		},
 	}
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			// Arrange
-			repo := &InMemoryTodoListViewRepository{
-				data: make(map[string]*dto.TodoListViewDTO),
+			repo := todo.NewInMemoryTodoListViewRepository()
+
+			// Pre-populate test data
+			for id, view := range tt.existingData {
+				err := repo.Save(context.Background(), id, view)
+				require.NoError(t, err)
 			}
-			maps.Copy(repo.data, tt.existingData)
 
 			// Act
-			got := repo.Get(context.Background(), tt.aggregateID)
+			got, err := repo.Get(context.Background(), tt.aggregateID)
 
 			// Assert
-			if tt.want == nil {
+			if tt.wantError != nil {
+				require.Error(t, err)
+				require.ErrorIs(t, err, tt.wantError)
 				require.Nil(t, got)
 			} else {
+				require.NoError(t, err)
 				require.Equal(t, tt.want.AggregateID, got.AggregateID)
 				require.Equal(t, tt.want.UserID, got.UserID)
 				require.Equal(t, tt.want.Version, got.Version)
@@ -76,6 +85,7 @@ func TestInMemoryTodoListViewRepository_Save(t *testing.T) {
 	tests := map[string]struct {
 		aggregateID string
 		view        *dto.TodoListViewDTO
+		wantError   error
 	}{
 		"should save valid view": {
 			aggregateID: "test-id",
@@ -99,18 +109,19 @@ func TestInMemoryTodoListViewRepository_Save(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			// Arrange
-			repo := &InMemoryTodoListViewRepository{
-				data: make(map[string]*dto.TodoListViewDTO),
-			}
+			repo := todo.NewInMemoryTodoListViewRepository()
 
 			// Act
 			err := repo.Save(context.Background(), tt.aggregateID, tt.view)
 
 			// Assert
-			require.NoError(t, err)
-
-			if tt.view != nil {
-				saved := repo.Get(context.Background(), tt.aggregateID)
+			if tt.wantError != nil {
+				require.Error(t, err)
+				require.ErrorIs(t, err, tt.wantError)
+			} else {
+				require.NoError(t, err)
+				saved, err := repo.Get(context.Background(), tt.aggregateID)
+				require.NoError(t, err)
 				require.Equal(t, tt.view.AggregateID, saved.AggregateID)
 				require.Equal(t, tt.view.UserID, saved.UserID)
 				require.Equal(t, tt.view.Version, saved.Version)
