@@ -8,13 +8,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/repository"
+	appErrors "github.com/tomoki-yamamura/eventsourcing-todo/internal/errors"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/transaction"
 )
 
-var ErrOptimisticLock = errors.New("optimistic lock error")
 
 type eventStoreImpl struct {
 	deserializer repository.EventDeserializer
@@ -59,10 +60,9 @@ func (e *eventStoreImpl) SaveEvents(ctx context.Context, aggregateID uuid.UUID, 
 		)
 		if err != nil {
 			if isDuplicateKeyError(err) {
-				return fmt.Errorf("version conflict for aggregate %s version %d: %w",
-					aggregateID, evt.GetVersion(), ErrOptimisticLock)
+				return appErrors.OptimisticLock.Wrap(err, fmt.Sprintf("version conflict for aggregate %s version %d", aggregateID, evt.GetVersion()))
 			}
-			return err
+			return appErrors.RepositoryError.Wrap(err, "failed to save event")
 		}
 	}
 
@@ -70,8 +70,12 @@ func (e *eventStoreImpl) SaveEvents(ctx context.Context, aggregateID uuid.UUID, 
 }
 
 func isDuplicateKeyError(err error) bool {
-	return strings.Contains(err.Error(), "Duplicate entry") ||
-		strings.Contains(err.Error(), "Error 1062")
+	// MySQL error 1062 = ER_DUP_ENTRY
+	if errors.Is(err, &mysql.MySQLError{Number: 1062}) {
+			return true
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "duplicate") || strings.Contains(msg, "constraint failed")
 }
 
 func (e *eventStoreImpl) LoadEvents(ctx context.Context, aggregateID uuid.UUID) ([]event.Event, error) {
@@ -89,7 +93,7 @@ func (e *eventStoreImpl) LoadEvents(ctx context.Context, aggregateID uuid.UUID) 
 
 	rows, err := tx.QueryContext(ctx, query, aggregateID)
 	if err != nil {
-		return nil, err
+		return nil, appErrors.QueryError.Wrap(err, "failed to load events")
 	}
 	defer rows.Close()
 
@@ -103,19 +107,23 @@ func (e *eventStoreImpl) LoadEvents(ctx context.Context, aggregateID uuid.UUID) 
 
 		err := rows.Scan(&eventID, &eventType, &eventData, &version, &createdAt)
 		if err != nil {
-			return nil, err
+			return nil, appErrors.QueryError.Wrap(err, "failed to scan event row")
 		}
 
 		evt, err := e.deserializer.Deserialize(eventType, eventData)
 		if err != nil {
-			return nil, fmt.Errorf("failed to deserialize event %s: %w", eventType, err)
+			return nil, appErrors.QueryError.Wrap(err, fmt.Sprintf("failed to deserialize event %s", eventType))
 		}
 
 		events = append(events, evt)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, appErrors.QueryError.Wrap(err, "rows iteration error")
+	}
+
+	if len(events) == 0 {
+		return nil, appErrors.NotFound.New("todo list not found")
 	}
 
 	return events, nil

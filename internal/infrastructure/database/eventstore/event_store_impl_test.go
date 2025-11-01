@@ -3,6 +3,7 @@ package eventstore_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/config"
 	domainevent "github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
+	appErrors "github.com/tomoki-yamamura/eventsourcing-todo/internal/errors"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/client"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/eventstore"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/transaction"
@@ -145,8 +147,8 @@ func TestEventStore_SaveEvents_OptimisticLock(t *testing.T) {
 	testAggregateID := uuid.MustParse("12345678-1234-1234-1234-123456789012")
 
 	tests := map[string]struct {
-		events    []domainevent.Event
-		wantError error
+		events             []domainevent.Event
+		expectOptimisticLock bool
 	}{
 		"no conflict with different versions": {
 			events: []domainevent.Event{
@@ -165,7 +167,7 @@ func TestEventStore_SaveEvents_OptimisticLock(t *testing.T) {
 					CreatedAt:   time.Now(),
 				},
 			},
-			wantError: nil,
+			expectOptimisticLock: false,
 		},
 		"version conflict same aggregate same version": {
 			events: []domainevent.Event{
@@ -184,7 +186,7 @@ func TestEventStore_SaveEvents_OptimisticLock(t *testing.T) {
 					CreatedAt:   time.Now(),
 				},
 			},
-			wantError: eventstore.ErrOptimisticLock,
+			expectOptimisticLock: true,
 		},
 	}
 
@@ -196,8 +198,11 @@ func TestEventStore_SaveEvents_OptimisticLock(t *testing.T) {
 
 			err := store.SaveEvents(ctx, testAggregateID, tt.events)
 
-			if tt.wantError != nil {
-				require.ErrorIs(t, err, tt.wantError)
+			if tt.expectOptimisticLock {
+				require.Error(t, err)
+				var appErr *appErrors.Error
+				require.True(t, errors.As(err, &appErr))
+				require.Equal(t, appErrors.OptimisticLock, appErr.ErrCode)
 			} else {
 				require.NoError(t, err)
 			}

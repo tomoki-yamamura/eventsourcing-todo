@@ -2,17 +2,15 @@ package command
 
 import (
 	"context"
-	"fmt"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/aggregate"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/command"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/errors"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/repository"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/value"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/errors"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/command/input"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/gateway"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/presenter"
@@ -38,14 +36,13 @@ func NewTodoAddItemCommand(tx repository.Transaction, eventStore repository.Even
 
 func (u *TodoAddItemCommand) Execute(ctx context.Context, input *input.AddTodoInput, out presenter.CommandResultPresenter) error {
 	maxRetries := 3
-	var lastErr error
+	var err error
+	var aggregateID string
+	var version int
+	var events []event.Event
 
 	for attempt := range maxRetries {
-		var aggregateID string
-		var version int
-		var events []event.Event
-
-		err := u.tx.RWTx(ctx, func(ctx context.Context) error {
+		err = u.tx.RWTx(ctx, func(ctx context.Context) error {
 			todoText, err := value.NewTodoText(input.Todo)
 			if err != nil {
 				return err
@@ -59,10 +56,6 @@ func (u *TodoAddItemCommand) Execute(ctx context.Context, input *input.AddTodoIn
 			loadedEvents, err := u.eventStore.LoadEvents(ctx, aggregateUUID)
 			if err != nil {
 				return err
-			}
-
-			if len(loadedEvents) == 0 {
-				return errors.NewDomainError(errors.QueryDataNotFoundError, "todo list not found")
 			}
 
 			todoList := aggregate.NewTodoListAggregate()
@@ -103,24 +96,20 @@ func (u *TodoAddItemCommand) Execute(ctx context.Context, input *input.AddTodoIn
 			return nil
 		})
 
-		if err == nil {
-			return out.PresentSuccess(ctx, aggregateID, version, events)
+		if err != nil {
+			if errors.IsCode(err, errors.OptimisticLock) && attempt < maxRetries-1 {
+				waitTime := time.Duration(attempt+1) * 10 * time.Millisecond
+				time.Sleep(waitTime)
+				continue
+			}
+			break
 		}
+		break
+	}
 
-		lastErr = err
-
-		if isOptimisticLockError(err) && attempt < maxRetries-1 {
-			waitTime := time.Duration(attempt+1) * 10 * time.Millisecond
-			time.Sleep(waitTime)
-			continue
-		}
-
+	if err != nil {
 		return out.PresentError(ctx, err)
 	}
 
-	return out.PresentError(ctx, fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr))
-}
-
-func isOptimisticLockError(err error) bool {
-	return strings.Contains(err.Error(), "optimistic lock error")
+	return out.PresentSuccess(ctx, aggregateID, version, events)
 }
