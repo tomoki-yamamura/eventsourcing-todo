@@ -5,7 +5,8 @@ import (
 	"net/http"
 
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/handler/request"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/handler/response"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/presenter"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/view"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/command"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/command/input"
 )
@@ -27,29 +28,16 @@ func (h *TodoListCreateCommandHandler) CreateTodoList(w http.ResponseWriter, r *
 		return
 	}
 
-	if req.UserID == "" {
-		http.Error(w, "user_id is required", http.StatusBadRequest)
-		return
-	}
-
 	usecaseInput := &input.CreateTodoListInput{
 		UserID: req.UserID,
 	}
 
-	err := h.createCommand.Execute(r.Context(), usecaseInput)
+	view := view.NewHTTPCommandResultView(w)
+	presenter := presenter.NewCommandResultPresenterImpl(view)
+
+	err := h.createCommand.Execute(r.Context(), usecaseInput, presenter)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	resp := response.CreateTodoListResponse{
-		Message: "Todo list created successfully",
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }

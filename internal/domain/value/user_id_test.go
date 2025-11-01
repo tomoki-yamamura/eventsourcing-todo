@@ -26,17 +26,26 @@ func TestNewUserID(t *testing.T) {
 		"empty user ID": {
 			input:   "",
 			want:    UserID(""),
-			wantErr: ErrUserIDEmpty,
+			wantErr: DomainValidationError{
+				Field:   "user_id",
+				Message: "cannot be empty",
+			},
 		},
 		"user ID with only spaces": {
 			input:   "   ",
 			want:    UserID(""),
-			wantErr: ErrUserIDEmpty,
+			wantErr: DomainValidationError{
+				Field:   "user_id",
+				Message: "cannot be empty",
+			},
 		},
 		"too long user ID": {
 			input:   strings.Repeat("a", 129),
 			want:    UserID(""),
-			wantErr: ErrUserIDTooLong,
+			wantErr: DomainValidationError{
+				Field:   "user_id",
+				Message: "cannot exceed 128 characters",
+			},
 		},
 		"exactly 128 characters": {
 			input:   strings.Repeat("a", 128),

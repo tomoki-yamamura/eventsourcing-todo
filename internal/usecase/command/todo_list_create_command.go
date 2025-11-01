@@ -5,14 +5,16 @@ import (
 
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/aggregate"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/command"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/repository"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/value"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/command/input"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/gateway"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/presenter"
 )
 
 type TodoListCreateCommandInterface interface {
-	Execute(ctx context.Context, input *input.CreateTodoListInput) error
+	Execute(ctx context.Context, input *input.CreateTodoListInput, out presenter.CommandResultPresenter) error
 }
 
 type TodoListCreateCommand struct {
@@ -29,8 +31,12 @@ func NewTodoListCreateCommand(tx repository.Transaction, eventStore repository.E
 	}
 }
 
-func (u *TodoListCreateCommand) Execute(ctx context.Context, input *input.CreateTodoListInput) error {
-	return u.tx.RWTx(ctx, func(ctx context.Context) error {
+func (u *TodoListCreateCommand) Execute(ctx context.Context, input *input.CreateTodoListInput, out presenter.CommandResultPresenter) error {
+	var aggregateID string
+	var version int
+	var events []event.Event
+	
+	err := u.tx.RWTx(ctx, func(ctx context.Context) error {
 		userID, err := value.NewUserID(input.UserID)
 		if err != nil {
 			return err
@@ -49,6 +55,10 @@ func (u *TodoListCreateCommand) Execute(ctx context.Context, input *input.Create
 			return err
 		}
 
+		aggregateID = todoList.GetAggregateID().String()
+		version = todoList.GetVersion()
+		events = todoList.GetUncommittedEvents()
+
 		evs := todoList.GetUncommittedEvents()
 		u.tx.AfterCommit(func() error {
 			return u.eventBus.Publish(context.Background(), evs...)
@@ -58,4 +68,10 @@ func (u *TodoListCreateCommand) Execute(ctx context.Context, input *input.Create
 
 		return nil
 	})
+	
+	if err != nil {
+		return out.PresentError(ctx, err)
+	}
+	
+	return out.PresentSuccess(ctx, aggregateID, version, events)
 }

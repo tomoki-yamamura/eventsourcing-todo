@@ -6,6 +6,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/handler/request"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/presenter"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/view"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/command"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/command/input"
 )
@@ -36,16 +38,12 @@ func (h *TodoAddItemCommandHandler) AddTodo(w http.ResponseWriter, r *http.Reque
 		Todo:        req.Text,
 	}
 
-	err := h.addCommand.Execute(r.Context(), usecaseInput)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	view := view.NewHTTPCommandResultView(w)
+	presenter := presenter.NewCommandResultPresenterImpl(view)
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(map[string]string{"message": "Todo item added successfully"}); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	err := h.addCommand.Execute(r.Context(), usecaseInput, presenter)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }

@@ -61,7 +61,10 @@ func (a *TodoListAggregate) Hydration(events []event.Event) error {
 
 func (a *TodoListAggregate) ExecuteCreateTodoListCommand(cmd command.CreateTodoListCommand) error {
 	if a.aggregateID != uuid.Nil {
-		return fmt.Errorf("todo list already exists")
+		return value.DomainValidationError{
+			Field:   "todo_list",
+			Message: "already exists",
+		}
 	}
 
 	evt := event.TodoListCreatedEvent{
@@ -78,7 +81,10 @@ func (a *TodoListAggregate) ExecuteCreateTodoListCommand(cmd command.CreateTodoL
 func (a *TodoListAggregate) ExecuteAddTodoCommand(cmd command.AddTodoCommand) error {
 	// set a limit of only three items per day for Todo.
 	if len(a.items) >= 3 {
-		return fmt.Errorf("cannot add more than 3 todos per day")
+		return value.DomainValidationError{
+			Field:   "todo_items",
+			Message: "cannot add more than 3 todos per day",
+		}
 	}
 
 	evt := event.TodoAddedEvent{

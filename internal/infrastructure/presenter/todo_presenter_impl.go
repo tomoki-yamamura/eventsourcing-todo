@@ -3,6 +3,7 @@ package presenter
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/presenter/viewmodel"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/presenter"
@@ -26,13 +27,14 @@ func (p *HTTPTodoListPresenter) Present(ctx context.Context, out *output.GetTodo
 		AggregateID: out.AggregateID,
 		UserID:      out.UserID,
 		Items:       items,
+		UpdatedAt:   out.UpdatedAt.Format(time.RFC3339),
 	}
 	p.view.Render(ctx, vm, http.StatusOK, nil)
 	return nil
 }
 
-func (p *HTTPTodoListPresenter) PresentNotFound(ctx context.Context, aggregateID string) error {
-	p.view.Render(ctx, nil, http.StatusNotFound, nil)
+func (p *HTTPTodoListPresenter) PresentNotFound(ctx context.Context, err error) error {
+	p.view.Render(ctx, nil, http.StatusNotFound, err)
 	return nil
 }
 

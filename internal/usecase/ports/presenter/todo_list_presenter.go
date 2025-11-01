@@ -8,6 +8,6 @@ import (
 
 type TodoListPresenter interface {
 	Present(ctx context.Context, output *output.GetTodoListOutput) error
-	PresentNotFound(ctx context.Context, aggregateID string) error
+	PresentNotFound(ctx context.Context, err error) error
 	PresentError(ctx context.Context, err error) error
 }

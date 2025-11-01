@@ -1,0 +1,65 @@
+package presenter
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/value"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/presenter/viewmodel"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/presenter"
+)
+
+type CommandResultPresenterImpl struct {
+	view CommandView
+}
+
+func NewCommandResultPresenterImpl(view CommandView) presenter.CommandResultPresenter {
+	return &CommandResultPresenterImpl{
+		view: view,
+	}
+}
+
+func (p *CommandResultPresenterImpl) PresentSuccess(ctx context.Context, aggregateID string, version int, events []event.Event) error {
+	eventVMs := make([]viewmodel.EventViewModel, 0, len(events))
+	for _, ev := range events {
+		eventVMs = append(eventVMs, viewmodel.EventViewModel{
+			Type:       ev.GetEventType(),
+			Version:    ev.GetVersion(),
+			Data:       ev,
+			OccurredAt: ev.GetTimestamp().Format(time.RFC3339),
+		})
+	}
+
+	vm := &viewmodel.CommandResultViewModel{
+		AggregateID: aggregateID,
+		Version:     version,
+		Events:      eventVMs,
+		Status:      "success",
+		ExecutedAt:  time.Now().Format(time.RFC3339),
+	}
+
+	return p.view.Render(ctx, vm, 200, nil)
+}
+
+func (p *CommandResultPresenterImpl) PresentError(ctx context.Context, err error) error {
+	vm := &viewmodel.CommandResultViewModel{
+		Status:     "error",
+		ExecutedAt: time.Now().Format(time.RFC3339),
+	}
+
+	statusCode := p.determineStatusCode(err)
+	return p.view.Render(ctx, vm, statusCode, err)
+}
+
+func (p *CommandResultPresenterImpl) determineStatusCode(err error) int {
+	switch {
+	case errors.As(err, &value.DomainValidationError{}):
+		return 422
+	case errors.As(err, &value.NotFoundError{}):
+		return 404
+	default:
+		return 500
+	}
+}

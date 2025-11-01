@@ -9,14 +9,16 @@ import (
 	"github.com/google/uuid"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/aggregate"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/command"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/repository"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/value"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/command/input"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/gateway"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/presenter"
 )
 
 type TodoAddItemCommandInterface interface {
-	Execute(ctx context.Context, input *input.AddTodoInput) error
+	Execute(ctx context.Context, input *input.AddTodoInput, out presenter.CommandResultPresenter) error
 }
 
 type TodoAddItemCommand struct {
@@ -33,11 +35,15 @@ func NewTodoAddItemCommand(tx repository.Transaction, eventStore repository.Even
 	}
 }
 
-func (u *TodoAddItemCommand) Execute(ctx context.Context, input *input.AddTodoInput) error {
+func (u *TodoAddItemCommand) Execute(ctx context.Context, input *input.AddTodoInput, out presenter.CommandResultPresenter) error {
 	maxRetries := 3
 	var lastErr error
 
 	for attempt := range maxRetries {
+		var aggregateID string
+		var version int
+		var events []event.Event
+		
 		err := u.tx.RWTx(ctx, func(ctx context.Context) error {
 			todoText, err := value.NewTodoText(input.Todo)
 			if err != nil {
@@ -49,17 +55,20 @@ func (u *TodoAddItemCommand) Execute(ctx context.Context, input *input.AddTodoIn
 				return err
 			}
 
-			events, err := u.eventStore.LoadEvents(ctx, aggregateUUID)
+			loadedEvents, err := u.eventStore.LoadEvents(ctx, aggregateUUID)
 			if err != nil {
 				return err
 			}
 
-			if len(events) == 0 {
-				return fmt.Errorf("todo list not found")
+			if len(loadedEvents) == 0 {
+				return value.NotFoundError{
+					Resource: "todo list",
+					ID:       input.AggregateID,
+				}
 			}
 
 			todoList := aggregate.NewTodoListAggregate()
-			if err := todoList.Hydration(events); err != nil {
+			if err := todoList.Hydration(loadedEvents); err != nil {
 				return err
 			}
 
@@ -82,6 +91,10 @@ func (u *TodoAddItemCommand) Execute(ctx context.Context, input *input.AddTodoIn
 				return err
 			}
 
+			aggregateID = todoList.GetAggregateID().String()
+			version = todoList.GetVersion()
+			events = todoList.GetUncommittedEvents()
+
 			evs := todoList.GetUncommittedEvents()
 			u.tx.AfterCommit(func() error {
 				return u.eventBus.Publish(context.Background(), evs...)
@@ -93,7 +106,7 @@ func (u *TodoAddItemCommand) Execute(ctx context.Context, input *input.AddTodoIn
 		})
 
 		if err == nil {
-			return nil
+			return out.PresentSuccess(ctx, aggregateID, version, events)
 		}
 
 		lastErr = err
@@ -104,10 +117,10 @@ func (u *TodoAddItemCommand) Execute(ctx context.Context, input *input.AddTodoIn
 			continue
 		}
 
-		return err
+		return out.PresentError(ctx, err)
 	}
 
-	return fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr)
+	return out.PresentError(ctx, fmt.Errorf("failed after %d retries: %w", maxRetries, lastErr))
 }
 
 func isOptimisticLockError(err error) bool {

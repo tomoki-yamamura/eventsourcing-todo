@@ -23,11 +23,17 @@ func TestNewTodoText(t *testing.T) {
 		},
 		"empty string": {
 			input:   "",
-			wantErr: ErrTodoTextEmpty,
+			wantErr: DomainValidationError{
+				Field:   "todo_text",
+				Message: "cannot be empty",
+			},
 		},
 		"only spaces": {
 			input:   "   ",
-			wantErr: ErrTodoTextEmpty,
+			wantErr: DomainValidationError{
+				Field:   "todo_text",
+				Message: "cannot be empty",
+			},
 		},
 		"exactly 256 characters": {
 			input: strings.Repeat("a", 256),
@@ -35,7 +41,10 @@ func TestNewTodoText(t *testing.T) {
 		},
 		"over 256 characters": {
 			input:   strings.Repeat("a", 257),
-			wantErr: ErrTodoTextTooLong,
+			wantErr: DomainValidationError{
+				Field:   "todo_text",
+				Message: "cannot exceed 256 characters",
+			},
 		},
 	}
 
@@ -43,8 +52,10 @@ func TestNewTodoText(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got, err := NewTodoText(tt.input)
 			if tt.wantErr != nil {
-				require.ErrorIs(t, err, tt.wantErr)
+				require.Error(t, err)
+				require.Equal(t, tt.wantErr, err)
 			} else {
+				require.NoError(t, err)
 				require.Equal(t, tt.want, got)
 			}
 		})
