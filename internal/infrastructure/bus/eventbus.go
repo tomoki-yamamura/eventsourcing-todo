@@ -4,14 +4,14 @@ import (
 	"context"
 
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/gateway"
 )
 
 type InMemoryEventBus struct {
 	handlers []func(context.Context, event.Event) error
 }
 
-func NewInMemoryEventBus() ports.EventBus {
+func NewInMemoryEventBus() gateway.EventBus {
 	return &InMemoryEventBus{
 		handlers: make([]func(context.Context, event.Event) error, 0),
 	}

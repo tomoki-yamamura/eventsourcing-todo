@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query/dto"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/readmodelstore"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/readmodelstore/dto"
 )
 
 type InMemoryTodoListViewRepository struct {
@@ -13,7 +13,7 @@ type InMemoryTodoListViewRepository struct {
 	data map[string]*dto.TodoListViewDTO
 }
 
-func NewInMemoryTodoListViewRepository() ports.TodoListViewRepository {
+func NewInMemoryTodoListViewRepository() readmodelstore.TodoListReadModelStore {
 	return &InMemoryTodoListViewRepository{
 		data: make(map[string]*dto.TodoListViewDTO),
 	}

@@ -12,7 +12,7 @@ import (
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/repository"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/value"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/command/input"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/gateway"
 )
 
 type TodoAddItemCommandInterface interface {
@@ -22,10 +22,10 @@ type TodoAddItemCommandInterface interface {
 type TodoAddItemCommand struct {
 	tx         repository.Transaction
 	eventStore repository.EventStore
-	eventBus   ports.EventPublisher
+	eventBus   gateway.EventPublisher
 }
 
-func NewTodoAddItemCommand(tx repository.Transaction, eventStore repository.EventStore, eventBus ports.EventPublisher) TodoAddItemCommandInterface {
+func NewTodoAddItemCommand(tx repository.Transaction, eventStore repository.EventStore, eventBus gateway.EventPublisher) TodoAddItemCommandInterface {
 	return &TodoAddItemCommand{
 		tx:         tx,
 		eventStore: eventStore,

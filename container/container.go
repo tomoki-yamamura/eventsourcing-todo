@@ -12,7 +12,8 @@ import (
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/database/transaction"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/projector/todo"
 	commandUseCase "github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/command"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/gateway"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/readmodelstore"
 	queryUseCase "github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query"
 )
 
@@ -25,10 +26,10 @@ type Container struct {
 	EventStore   repository.EventStore
 	Deserializer repository.EventDeserializer
 
-	// Ports implementation
-	EventBus      ports.EventBus
-	TodoViewRepo  ports.TodoListViewRepository
-	TodoProjector ports.Projector
+	// Gateway implementation
+	EventBus      gateway.EventBus
+	TodoProjector gateway.Projector
+	TodoViewRepo  readmodelstore.TodoListReadModelStore
 
 	// Use case layer (CQRS)
 	TodoListCreateCommand commandUseCase.TodoListCreateCommandInterface

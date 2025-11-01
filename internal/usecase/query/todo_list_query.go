@@ -2,31 +2,31 @@ package query
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/presenter"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/readmodelstore"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query/input"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query/output"
 )
 
 type TodoListQueryInterface interface {
-	Query(ctx context.Context, input *input.GetTodoListInput) (*output.GetTodoListOutput, error)
+	Execute(ctx context.Context, input *input.GetTodoListInput, out presenter.TodoListPresenter) error
 }
 
 type TodoListQuery struct {
-	viewQuery ports.TodoListQuery
+	store readmodelstore.TodoListReadModelStore
 }
 
-func NewTodoListQuery(viewQuery ports.TodoListQuery) TodoListQueryInterface {
+func NewTodoListQuery(store readmodelstore.TodoListReadModelStore) TodoListQueryInterface {
 	return &TodoListQuery{
-		viewQuery: viewQuery,
+		store: store,
 	}
 }
 
-func (u *TodoListQuery) Query(ctx context.Context, input *input.GetTodoListInput) (*output.GetTodoListOutput, error) {
-	view := u.viewQuery.Get(ctx, input.AggregateID)
+func (u *TodoListQuery) Execute(ctx context.Context, input *input.GetTodoListInput, out presenter.TodoListPresenter) error {
+	view := u.store.Get(ctx, input.AggregateID)
 	if view == nil {
-		return nil, fmt.Errorf("todo list not found")
+		return out.PresentNotFound(ctx, input.AggregateID)
 	}
 
 	items := make([]output.TodoItem, 0, len(view.Items))
@@ -36,9 +36,11 @@ func (u *TodoListQuery) Query(ctx context.Context, input *input.GetTodoListInput
 		})
 	}
 
-	return &output.GetTodoListOutput{
+	outputData := &output.GetTodoListOutput{
 		AggregateID: view.AggregateID,
 		UserID:      view.UserID,
 		Items:       items,
-	}, nil
+	}
+
+	return out.Present(ctx, outputData)
 }

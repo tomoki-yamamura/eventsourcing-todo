@@ -10,7 +10,7 @@ import (
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/value"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/projector/todo"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query/dto"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/readmodelstore/dto"
 )
 
 type mockViewRepository struct {

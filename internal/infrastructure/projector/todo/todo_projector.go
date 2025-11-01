@@ -4,16 +4,17 @@ import (
 	"context"
 
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query/dto"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/gateway"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/readmodelstore"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/readmodelstore/dto"
 )
 
 type TodoProjectorImpl struct {
-	viewRepo ports.TodoListViewRepository
+	viewRepo readmodelstore.TodoListReadModelStore
 	seen     map[string]struct{}
 }
 
-func NewTodoProjector(viewRepo ports.TodoListViewRepository) ports.Projector {
+func NewTodoProjector(viewRepo readmodelstore.TodoListReadModelStore) gateway.Projector {
 	return &TodoProjectorImpl{
 		viewRepo: viewRepo,
 		seen:     make(map[string]struct{}),
@@ -36,7 +37,7 @@ func (p *TodoProjectorImpl) Handle(ctx context.Context, e event.Event) error {
 	return nil
 }
 
-func (p *TodoProjectorImpl) Start(ctx context.Context, bus ports.EventSubscriber) error {
+func (p *TodoProjectorImpl) Start(ctx context.Context, bus gateway.EventSubscriber) error {
 	bus.Subscribe(p.Handle)
 	return nil
 }

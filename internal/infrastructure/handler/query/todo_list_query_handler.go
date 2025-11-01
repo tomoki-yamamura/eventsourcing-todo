@@ -1,21 +1,22 @@
 package query
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/presenter"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/view"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query/input"
 )
 
 type TodoListQueryHandler struct {
-	queryUseCase query.TodoListQueryInterface
+	todoListQueryUsecase query.TodoListQueryInterface
 }
 
-func NewTodoListQueryHandler(queryUseCase query.TodoListQueryInterface) *TodoListQueryHandler {
+func NewTodoListQueryHandler(todoListQueryUsecase query.TodoListQueryInterface) *TodoListQueryHandler {
 	return &TodoListQueryHandler{
-		queryUseCase: queryUseCase,
+		todoListQueryUsecase: todoListQueryUsecase,
 	}
 }
 
@@ -28,20 +29,14 @@ func (h *TodoListQueryHandler) Query(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	usecaseInput := &input.GetTodoListInput{
+	in := &input.GetTodoListInput{
 		AggregateID: aggregateID,
 	}
 
-	result, err := h.queryUseCase.Query(r.Context(), usecaseInput)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	v := view.NewHTTPTodoListView(w)
+	p := presenter.NewHTTPTodoListPresenter(v)
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(result); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	if err := h.todoListQueryUsecase.Execute(r.Context(), in, p); err != nil {
 		return
 	}
 }

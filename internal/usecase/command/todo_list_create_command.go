@@ -8,7 +8,7 @@ import (
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/repository"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/value"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/command/input"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/gateway"
 )
 
 type TodoListCreateCommandInterface interface {
@@ -18,10 +18,10 @@ type TodoListCreateCommandInterface interface {
 type TodoListCreateCommand struct {
 	tx         repository.Transaction
 	eventStore repository.EventStore
-	eventBus   ports.EventPublisher
+	eventBus   gateway.EventPublisher
 }
 
-func NewTodoListCreateCommand(tx repository.Transaction, eventStore repository.EventStore, eventBus ports.EventPublisher) TodoListCreateCommandInterface {
+func NewTodoListCreateCommand(tx repository.Transaction, eventStore repository.EventStore, eventBus gateway.EventPublisher) TodoListCreateCommandInterface {
 	return &TodoListCreateCommand{
 		tx:         tx,
 		eventStore: eventStore,

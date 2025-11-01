@@ -1,11 +1,11 @@
 package output
 
 type GetTodoListOutput struct {
-	AggregateID string     `json:"aggregate_id"`
-	UserID      string     `json:"user_id"`
-	Items       []TodoItem `json:"items"`
+	AggregateID string
+	UserID      string
+	Items       []TodoItem
 }
 
 type TodoItem struct {
-	Text string `json:"text"`
+	Text string
 }
