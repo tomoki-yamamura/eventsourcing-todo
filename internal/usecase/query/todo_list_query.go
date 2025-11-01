@@ -14,10 +14,10 @@ type TodoListQueryInterface interface {
 }
 
 type TodoListQuery struct {
-	store readmodelstore.TodoListReadModelStore
+	store readmodelstore.TodoListStore
 }
 
-func NewTodoListQuery(store readmodelstore.TodoListReadModelStore) TodoListQueryInterface {
+func NewTodoListQuery(store readmodelstore.TodoListStore) TodoListQueryInterface {
 	return &TodoListQuery{
 		store: store,
 	}

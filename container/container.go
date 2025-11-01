@@ -29,7 +29,7 @@ type Container struct {
 	// Gateway implementation
 	EventBus      gateway.EventBus
 	TodoProjector gateway.Projector
-	TodoViewRepo  readmodelstore.TodoListReadModelStore
+	TodoViewRepo  readmodelstore.TodoListStore
 
 	// Use case layer (CQRS)
 	TodoListCreateCommand commandUseCase.TodoListCreateCommandInterface

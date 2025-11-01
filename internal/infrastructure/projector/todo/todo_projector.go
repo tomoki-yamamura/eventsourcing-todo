@@ -10,11 +10,11 @@ import (
 )
 
 type TodoProjectorImpl struct {
-	viewRepo readmodelstore.TodoListReadModelStore
+	viewRepo readmodelstore.TodoListStore
 	seen     map[string]struct{}
 }
 
-func NewTodoProjector(viewRepo readmodelstore.TodoListReadModelStore) gateway.Projector {
+func NewTodoProjector(viewRepo readmodelstore.TodoListStore) gateway.Projector {
 	return &TodoProjectorImpl{
 		viewRepo: viewRepo,
 		seen:     make(map[string]struct{}),
@@ -35,7 +35,7 @@ func (p *TodoProjectorImpl) Handle(ctx context.Context, e event.Event) error {
 	}
 	updated := p.applyToView(current, e)
 	if updated != nil {
-		return p.viewRepo.Save(ctx, aggID, updated)
+		return p.viewRepo.Upsert(ctx, aggID, updated)
 	}
 	return nil
 }

@@ -65,7 +65,7 @@ func TestInMemoryTodoListViewRepository_Get(t *testing.T) {
 			// Assert
 			if tt.wantError != nil {
 				require.Error(t, err)
-				require.ErrorIs(t, err, tt.wantError)
+				require.True(t, errors.IsCode(err, errors.NotFound))
 				require.Nil(t, got)
 			} else {
 				require.NoError(t, err)
@@ -117,14 +117,21 @@ func TestInMemoryTodoListViewRepository_Save(t *testing.T) {
 			// Assert
 			if tt.wantError != nil {
 				require.Error(t, err)
-				require.ErrorIs(t, err, tt.wantError)
+				require.True(t, errors.IsCode(err, errors.NotFound))
 			} else {
 				require.NoError(t, err)
-				saved, err := repo.Get(context.Background(), tt.aggregateID)
-				require.NoError(t, err)
-				require.Equal(t, tt.view.AggregateID, saved.AggregateID)
-				require.Equal(t, tt.view.UserID, saved.UserID)
-				require.Equal(t, tt.view.Version, saved.Version)
+				if tt.view != nil {
+					saved, err := repo.Get(context.Background(), tt.aggregateID)
+					require.NoError(t, err)
+					require.Equal(t, tt.view.AggregateID, saved.AggregateID)
+					require.Equal(t, tt.view.UserID, saved.UserID)
+					require.Equal(t, tt.view.Version, saved.Version)
+				} else {
+					// For nil view, expect NotFound when trying to get it back
+					_, err := repo.Get(context.Background(), tt.aggregateID)
+					require.Error(t, err)
+					require.True(t, errors.IsCode(err, errors.NotFound))
+				}
 			}
 		})
 	}

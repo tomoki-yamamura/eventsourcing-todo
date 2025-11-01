@@ -7,6 +7,9 @@ type Error struct {
 }
 
 func (e *Error) Error() string {
+	if e.Message != "" {
+		return e.Message
+	}
 	return e.Err.Error()
 }
 

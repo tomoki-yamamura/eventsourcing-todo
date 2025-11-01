@@ -5,16 +5,16 @@ import (
 	"sync"
 
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/errors"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/readmodelstore"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/readmodelstore/dto"
 )
 
+// InMemoryTodoListViewRepository implements both QueryTodoListReadModelStore and ProjectorTodoListReadModelStore
 type InMemoryTodoListViewRepository struct {
 	mu   sync.RWMutex
 	data map[string]*dto.TodoListViewDTO
 }
 
-func NewInMemoryTodoListViewRepository() readmodelstore.TodoListReadModelStore {
+func NewInMemoryTodoListViewRepository() *InMemoryTodoListViewRepository {
 	return &InMemoryTodoListViewRepository{
 		data: make(map[string]*dto.TodoListViewDTO),
 	}
@@ -32,7 +32,7 @@ func (r *InMemoryTodoListViewRepository) Get(ctx context.Context, aggregateID st
 	return r.cloneView(view), nil
 }
 
-func (r *InMemoryTodoListViewRepository) Save(ctx context.Context, aggregateID string, view *dto.TodoListViewDTO) error {
+func (r *InMemoryTodoListViewRepository) Upsert(ctx context.Context, aggregateID string, view *dto.TodoListViewDTO) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

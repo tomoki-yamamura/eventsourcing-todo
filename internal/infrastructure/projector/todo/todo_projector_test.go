@@ -31,7 +31,7 @@ func (m *mockViewRepository) Get(ctx context.Context, aggregateID string) (*dto.
 	return view, nil
 }
 
-func (m *mockViewRepository) Save(ctx context.Context, aggregateID string, view *dto.TodoListViewDTO) error {
+func (m *mockViewRepository) Upsert(ctx context.Context, aggregateID string, view *dto.TodoListViewDTO) error {
 	if m.saveError != nil {
 		return m.saveError
 	}
@@ -82,7 +82,7 @@ func TestTodoProjectorImpl_Handle_TodoListCreatedEvent(t *testing.T) {
 			// Assert
 			if tt.wantError != nil {
 				require.Error(t, err)
-				require.ErrorIs(t, err, tt.wantError)
+				require.True(t, errors.IsCode(err, errors.NotFound))
 			} else {
 				require.NoError(t, err)
 				saved := mockRepo.data[tt.event.AggregateID.String()]
@@ -162,7 +162,7 @@ func TestTodoProjectorImpl_Handle_TodoAddedEvent(t *testing.T) {
 			// Assert
 			if tt.wantError != nil {
 				require.Error(t, err)
-				require.ErrorIs(t, err, tt.wantError)
+				require.True(t, errors.IsCode(err, errors.NotFound))
 			} else {
 				require.NoError(t, err)
 				saved := mockRepo.data[aggregateID.String()]

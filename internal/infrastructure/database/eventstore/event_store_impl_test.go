@@ -84,9 +84,8 @@ func TestEventStore_SaveEvents(t *testing.T) {
 	testAggregateID := uuid.MustParse("12345678-1234-1234-1234-123456789012")
 
 	tests := map[string]struct {
-		events      []domainevent.Event
-		expectError bool
-		errorText   string
+		events    []domainevent.Event
+		wantError error
 	}{
 		"successful save single event": {
 			events: []domainevent.Event{
@@ -98,7 +97,7 @@ func TestEventStore_SaveEvents(t *testing.T) {
 					CreatedAt:   time.Now(),
 				},
 			},
-			expectError: false,
+			wantError: nil,
 		},
 		"successful save multiple events": {
 			events: []domainevent.Event{
@@ -118,37 +117,8 @@ func TestEventStore_SaveEvents(t *testing.T) {
 					CreatedAt:   time.Now(),
 				},
 			},
-			expectError: false,
+			wantError: nil,
 		},
-	}
-
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			dbClient := newTestDBClient(t)
-			ctx, _ := beginTxCtx(t, dbClient)
-			store := eventstore.NewEventStore(fakeDeserializer{})
-
-			err := store.SaveEvents(ctx, testAggregateID, tt.events)
-
-			if tt.expectError {
-				require.Error(t, err)
-				if tt.errorText != "" {
-					require.Contains(t, err.Error(), tt.errorText)
-				}
-			} else {
-				require.NoError(t, err)
-			}
-		})
-	}
-}
-
-func TestEventStore_SaveEvents_OptimisticLock(t *testing.T) {
-	testAggregateID := uuid.MustParse("12345678-1234-1234-1234-123456789012")
-
-	tests := map[string]struct {
-		events    []domainevent.Event
-		wantError error
-	}{
 		"no conflict with different versions": {
 			events: []domainevent.Event{
 				testEvent{
@@ -185,7 +155,7 @@ func TestEventStore_SaveEvents_OptimisticLock(t *testing.T) {
 					CreatedAt:   time.Now(),
 				},
 			},
-			wantError: errors.OptimisticLock.New("version conflict"),
+			wantError: errors.OptimisticLock.New(""),
 		},
 	}
 
@@ -199,7 +169,7 @@ func TestEventStore_SaveEvents_OptimisticLock(t *testing.T) {
 
 			if tt.wantError != nil {
 				require.Error(t, err)
-				require.ErrorIs(t, err, tt.wantError)
+				require.True(t, errors.IsCode(err, errors.OptimisticLock))
 			} else {
 				require.NoError(t, err)
 			}
@@ -272,7 +242,7 @@ func TestEventStore_LoadEvents(t *testing.T) {
 			// Assert
 			if tt.wantError != nil {
 				require.Error(t, err)
-				require.ErrorIs(t, err, tt.wantError)
+				require.True(t, errors.IsCode(err, errors.NotFound))
 			} else {
 				require.NoError(t, err)
 				require.Len(t, loadedEvents, tt.expectedCount)
