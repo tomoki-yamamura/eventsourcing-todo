@@ -10,22 +10,24 @@ import (
 )
 
 type HTTPTodoListView struct {
-	w http.ResponseWriter
+	writer http.ResponseWriter
 }
 
 func NewHTTPTodoListView(w http.ResponseWriter) presenter.TodoListView {
-	return &HTTPTodoListView{w: w}
+	return &HTTPTodoListView{writer: w}
 }
 
-func (v *HTTPTodoListView) Render(ctx context.Context, vm *viewmodel.TodoListVM, status int, err error) {
-	v.w.Header().Set("Content-Type", "application/json")
-	v.w.WriteHeader(status)
+func (v *HTTPTodoListView) Render(ctx context.Context, vm *viewmodel.TodoListVM, status int, err error) error {
+	v.writer.Header().Set("Content-Type", "application/json")
+	v.writer.WriteHeader(status)
 
 	if err != nil {
-		_ = json.NewEncoder(v.w).Encode(map[string]string{"error": err.Error()})
-		return
+		errorResponse := map[string]any{
+			"status":  "error",
+			"message": err.Error(),
+		}
+		return json.NewEncoder(v.writer).Encode(errorResponse)
 	}
-	if vm != nil {
-		_ = json.NewEncoder(v.w).Encode(vm)
-	}
+
+	return json.NewEncoder(v.writer).Encode(vm)
 }

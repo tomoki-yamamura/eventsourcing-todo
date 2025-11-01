@@ -29,16 +29,13 @@ func (p *HTTPTodoListPresenter) Present(ctx context.Context, out *output.GetTodo
 		Items:       items,
 		UpdatedAt:   out.UpdatedAt.Format(time.RFC3339),
 	}
-	p.view.Render(ctx, vm, http.StatusOK, nil)
-	return nil
+	return p.view.Render(ctx, vm, http.StatusOK, nil)
 }
 
 func (p *HTTPTodoListPresenter) PresentNotFound(ctx context.Context, err error) error {
-	p.view.Render(ctx, nil, http.StatusNotFound, err)
-	return nil
+	return p.view.Render(ctx, nil, http.StatusNotFound, err)
 }
 
 func (p *HTTPTodoListPresenter) PresentError(ctx context.Context, err error) error {
-	p.view.Render(ctx, nil, http.StatusInternalServerError, err)
-	return nil
+	return p.view.Render(ctx, nil, http.StatusInternalServerError, err)
 }

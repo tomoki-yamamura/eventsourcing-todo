@@ -20,16 +20,15 @@ func NewHTTPCommandResultView(w http.ResponseWriter) *HTTPCommandResultView {
 
 func (v *HTTPCommandResultView) Render(ctx context.Context, vm *viewmodel.CommandResultViewModel, status int, err error) error {
 	v.writer.Header().Set("Content-Type", "application/json")
+	v.writer.WriteHeader(status)
 
 	if err != nil {
-		v.writer.WriteHeader(status)
-		return json.NewEncoder(v.writer).Encode(map[string]interface{}{
-			"status":     "error",
-			"message":    err.Error(),
-			"executedAt": vm.ExecutedAt,
-		})
+		errorResponse := map[string]any{
+			"status":  "error",
+			"message": err.Error(),
+		}
+		return json.NewEncoder(v.writer).Encode(errorResponse)
 	}
 
-	v.writer.WriteHeader(status)
 	return json.NewEncoder(v.writer).Encode(vm)
 }

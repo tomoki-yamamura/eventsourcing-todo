@@ -11,5 +11,5 @@ type CommandView interface {
 }
 
 type TodoListView interface {
-	Render(ctx context.Context, vm *viewmodel.TodoListVM, status int, err error)
+	Render(ctx context.Context, vm *viewmodel.TodoListVM, status int, err error) error
 }
