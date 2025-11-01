@@ -3,7 +3,12 @@ package value
 import (
 	"strings"
 
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/errors"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/errors"
+)
+
+var (
+	ErrUserIDEmpty   = errors.InvalidParameter.New("user_id cannot be empty")
+	ErrUserIDTooLong = errors.InvalidParameter.New("user_id cannot exceed 128 characters")
 )
 
 type UserID string
@@ -12,11 +17,11 @@ func NewUserID(id string) (UserID, error) {
 	trimmed := strings.TrimSpace(id)
 
 	if trimmed == "" {
-		return "", errors.NewDomainError(errors.InvalidParameter, "user_id cannot be empty")
+		return "", ErrUserIDEmpty
 	}
 
 	if len(trimmed) > 128 {
-		return "", errors.NewDomainError(errors.InvalidParameter, "user_id cannot exceed 128 characters")
+		return "", ErrUserIDTooLong
 	}
 
 	return UserID(trimmed), nil
