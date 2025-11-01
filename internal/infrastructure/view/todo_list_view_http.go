@@ -5,18 +5,15 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/presenter"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/presenter/viewmodel"
 )
-
-type TodoListView interface {
-	Render(ctx context.Context, vm *viewmodel.TodoListVM, status int, err error)
-}
 
 type HTTPTodoListView struct {
 	w http.ResponseWriter
 }
 
-func NewHTTPTodoListView(w http.ResponseWriter) TodoListView {
+func NewHTTPTodoListView(w http.ResponseWriter) presenter.TodoListView {
 	return &HTTPTodoListView{w: w}
 }
 

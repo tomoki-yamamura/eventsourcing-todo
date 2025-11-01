@@ -22,8 +22,14 @@ This project uses the following core technologies:
 The application follows **Clean Architecture** principles with the following layers:
 
 - **Domain Layer**: Aggregates, Value Objects, Commands, Events, and Repository interfaces
-- **UseCase Layer**: Business logic and application services
-- **Infrastructure Layer**: Database implementations, HTTP handlers, and external integrations
+- **UseCase Layer**: Business logic, application services, and port interfaces
+- **Infrastructure Layer**: Database implementations, HTTP handlers, presenters, views, and external integrations
+
+### Clean Architecture Pattern
+
+- **Ports & Adapters**: Clear separation between business logic and external concerns
+- **Presenter Pattern**: UseCase outputs to Presenter interfaces, maintaining dependency inversion
+- **View Layer**: HTTP response rendering separated from presentation logic
 
 ### Event Sourcing Components
 
@@ -263,10 +269,18 @@ task lint
     │   │   ├── output/                  # Query output models
     │   │   │   └── get_todo_list_output.go
     │   │   └── todo_list_query.go       # TodoList query implementation
-    │   └── ports/                       # Interface definitions
-    │       ├── eventbus.go              # Event bus interfaces
-    │       ├── projector.go             # Projector interface
-    │       └── todo_list_query.go       # TodoList query interfaces
+    │   ├── ports/                       # Port interfaces (Clean Architecture)
+    │   │   ├── gateway/                 # Gateway interfaces (external systems)
+    │   │   │   ├── eventbus.go          # Event bus interfaces
+    │   │   │   └── projector.go         # Projector interface
+    │   │   ├── presenter/               # Presenter interfaces (output ports)
+    │   │   │   └── todo_list_presenter.go # TodoList presenter interface
+    │   │   └── readmodelstore/          # Read model store interfaces
+    │   │       ├── todo_list_query.go   # Read model store interface
+    │   │       └── dto/                 # Read model DTOs
+    │   │           └── todo_list_view_dto.go
+    │   └── readmodelstore/              # Read model store interface definitions
+    │       └── todo_list_query.go       # Read model store interface
     └── infrastructure/                  # Infrastructure layer
         ├── bus/                         # Event bus implementation
         │   └── eventbus.go              # In-memory event bus
@@ -288,7 +302,16 @@ task lint
         ├── projector/                   # Read model projectors
         │   └── todo/                    # Todo-specific projector
         │       ├── todo_projector.go    # Todo projector implementation
-        │       └── inmemory_repository.go # In-memory view repository
+        │       ├── todo_projector_test.go # Projector unit tests
+        │       ├── inmemory_repository.go # In-memory read model repository
+        │       └── inmemory_repository_test.go # Repository unit tests
+        ├── presenter/                   # Presenter layer (Clean Architecture)
+        │   ├── viewmodel/               # View models for presentation
+        │   │   └── todo_list_view_model.go # TodoList view model
+        │   ├── view.go                  # View interface definition
+        │   └── todo_presenter_impl.go   # TodoList presenter implementation
+        ├── view/                        # View implementations
+        │   └── todo_list_view_http.go   # HTTP view implementation
         ├── handler/                     # HTTP handlers (separated by responsibility)
         │   ├── command/                 # Command handlers (write operations)
         │   │   ├── todo_list_create_command_handler.go  # TodoList creation

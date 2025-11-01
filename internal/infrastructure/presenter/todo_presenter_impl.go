@@ -5,16 +5,15 @@ import (
 	"net/http"
 
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/presenter/viewmodel"
-	"github.com/tomoki-yamamura/eventsourcing-todo/internal/infrastructure/view"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/presenter"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/query/output"
 )
 
 type HTTPTodoListPresenter struct {
-	view view.TodoListView
+	view TodoListView
 }
 
-func NewHTTPTodoListPresenter(view view.TodoListView) presenter.TodoListPresenter {
+func NewHTTPTodoListPresenter(view TodoListView) presenter.TodoListPresenter {
 	return &HTTPTodoListPresenter{view: view}
 }
 
