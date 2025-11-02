@@ -29,6 +29,10 @@ func main() {
 		log.Fatalf("Failed to inject dependencies: %v", err)
 	}
 
+	if err := cont.RestoreReadModels(ctx); err != nil {
+		log.Fatalf("Failed to restore read models: %v", err)
+	}
+
 	if err := cont.TodoProjector.Start(ctx, cont.EventBus); err != nil {
 		log.Fatalf("Failed to start projector: %v", err)
 	}

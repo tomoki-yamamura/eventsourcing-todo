@@ -67,3 +67,20 @@ func (c *Container) Inject(ctx context.Context, cfg *config.Config) error {
 
 	return nil
 }
+
+func (c *Container) RestoreReadModels(ctx context.Context) error {
+	return c.Transaction.RWTx(ctx, func(txCtx context.Context) error {
+		events, err := c.EventStore.GetAllEvents(txCtx)
+		if err != nil {
+			return err
+		}
+
+		for _, event := range events {
+			if err := c.TodoProjector.Handle(ctx, event); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}

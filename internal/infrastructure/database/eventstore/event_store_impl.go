@@ -127,3 +127,50 @@ func (e *eventStoreImpl) LoadEvents(ctx context.Context, aggregateID uuid.UUID) 
 
 	return events, nil
 }
+
+func (e *eventStoreImpl) GetAllEvents(ctx context.Context) ([]event.Event, error) {
+	tx, err := transaction.GetTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		SELECT event_id, event_type, event_data, version, created_at, aggregate_id
+		FROM events 
+		ORDER BY aggregate_id ASC, version ASC
+	`
+
+	rows, err := tx.QueryContext(ctx, query)
+	if err != nil {
+		return nil, appErrors.QueryError.Wrap(err, "failed to load all events")
+	}
+	defer rows.Close()
+
+	var events []event.Event
+	for rows.Next() {
+		var eventID uuid.UUID
+		var eventType string
+		var eventData []byte
+		var version int
+		var createdAt time.Time
+		var aggregateID uuid.UUID
+
+		err := rows.Scan(&eventID, &eventType, &eventData, &version, &createdAt, &aggregateID)
+		if err != nil {
+			return nil, appErrors.QueryError.Wrap(err, "failed to scan event row")
+		}
+
+		evt, err := e.deserializer.Deserialize(eventType, eventData)
+		if err != nil {
+			return nil, appErrors.QueryError.Wrap(err, fmt.Sprintf("failed to deserialize event %s", eventType))
+		}
+
+		events = append(events, evt)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, appErrors.QueryError.Wrap(err, "rows iteration error")
+	}
+
+	return events, nil
+}
