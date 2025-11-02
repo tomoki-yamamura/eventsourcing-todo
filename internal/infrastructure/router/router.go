@@ -24,9 +24,9 @@ func (r *Router) SetupRoutes() *mux.Router {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/todo-lists", r.createCommandHandler.CreateTodoList).Methods("POST")
-	router.HandleFunc("/todo-lists/{aggregate_id}/todos", r.addCommandHandler.AddTodo).Methods("POST")
+	router.HandleFunc("/todo-lists/{aggregate_id}/items", r.addCommandHandler.AddTodo).Methods("POST")
 
-	router.HandleFunc("/todo-lists/{aggregate_id}/todos", r.queryHandler.Query).Methods("GET")
+	router.HandleFunc("/todo-lists/{aggregate_id}/items", r.queryHandler.Query).Methods("GET")
 
 	return router
 }
