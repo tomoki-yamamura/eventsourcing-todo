@@ -55,7 +55,7 @@ func TestInMemoryTodoListViewRepository_Get(t *testing.T) {
 
 			// Pre-populate test data
 			for id, view := range tt.existingData {
-				err := repo.Save(context.Background(), id, view)
+				err := repo.Upsert(context.Background(), id, view)
 				require.NoError(t, err)
 			}
 
@@ -81,13 +81,13 @@ func TestInMemoryTodoListViewRepository_Get(t *testing.T) {
 	}
 }
 
-func TestInMemoryTodoListViewRepository_Save(t *testing.T) {
+func TestInMemoryTodoListViewRepository_Upsert(t *testing.T) {
 	tests := map[string]struct {
 		aggregateID string
 		view        *dto.TodoListViewDTO
 		wantError   error
 	}{
-		"should save valid view": {
+		"should upsert valid view": {
 			aggregateID: "test-id",
 			view: &dto.TodoListViewDTO{
 				AggregateID: "test-id",
@@ -112,7 +112,7 @@ func TestInMemoryTodoListViewRepository_Save(t *testing.T) {
 			repo := todo.NewInMemoryTodoListViewRepository()
 
 			// Act
-			err := repo.Save(context.Background(), tt.aggregateID, tt.view)
+			err := repo.Upsert(context.Background(), tt.aggregateID, tt.view)
 
 			// Assert
 			if tt.wantError != nil {

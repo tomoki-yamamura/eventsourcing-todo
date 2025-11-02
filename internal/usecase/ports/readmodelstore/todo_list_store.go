@@ -2,6 +2,7 @@ package readmodelstore
 
 import (
 	"context"
+
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/readmodelstore/dto"
 )
 

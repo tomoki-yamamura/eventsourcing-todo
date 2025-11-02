@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/domain/event"
+	"github.com/tomoki-yamamura/eventsourcing-todo/internal/errors"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/gateway"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/readmodelstore"
 	"github.com/tomoki-yamamura/eventsourcing-todo/internal/usecase/ports/readmodelstore/dto"
@@ -28,15 +29,27 @@ func (p *TodoProjectorImpl) Handle(ctx context.Context, e event.Event) error {
 	}
 	p.seen[eventID] = struct{}{}
 
-	aggID := e.GetAggregateID().String()
-	current, err := p.viewRepo.Get(ctx, aggID)
-	if err != nil {
-		return err
+	switch e.(type) {
+	case event.TodoListCreatedEvent, event.TodoAddedEvent:
+		aggID := e.GetAggregateID().String()
+
+		current, err := p.viewRepo.Get(ctx, aggID)
+		if err != nil {
+			if errors.IsCode(err, errors.NotFound) {
+				current = nil
+			} else {
+				return err
+			}
+		}
+
+		updated := p.applyToView(current, e)
+		if updated != nil {
+			return p.viewRepo.Upsert(ctx, aggID, updated)
+		}
+	default:
+		return nil
 	}
-	updated := p.applyToView(current, e)
-	if updated != nil {
-		return p.viewRepo.Upsert(ctx, aggID, updated)
-	}
+
 	return nil
 }
 
@@ -56,14 +69,6 @@ func (p *TodoProjectorImpl) applyToView(view *dto.TodoListViewDTO, e event.Event
 			UpdatedAt:   evt.GetTimestamp(),
 		}
 	case event.TodoAddedEvent:
-		if view == nil {
-			return nil
-		}
-
-		if evt.GetVersion() <= view.Version {
-			return view
-		}
-
 		newItems := make([]dto.TodoItemViewDTO, len(view.Items))
 		copy(newItems, view.Items)
 		newItems = append(newItems, dto.TodoItemViewDTO{

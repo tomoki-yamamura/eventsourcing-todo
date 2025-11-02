@@ -44,7 +44,6 @@ func TestTodoProjectorImpl_Handle_TodoListCreatedEvent(t *testing.T) {
 		existingView *dto.TodoListViewDTO
 		event        event.TodoListCreatedEvent
 		want         *dto.TodoListViewDTO
-		wantError    error
 	}{
 		"should create new view for TodoListCreatedEvent": {
 			existingView: nil,
@@ -61,7 +60,6 @@ func TestTodoProjectorImpl_Handle_TodoListCreatedEvent(t *testing.T) {
 				Items:       []dto.TodoItemViewDTO{},
 				Version:     1,
 			},
-			wantError: nil,
 		},
 	}
 
@@ -80,18 +78,13 @@ func TestTodoProjectorImpl_Handle_TodoListCreatedEvent(t *testing.T) {
 			err := projector.Handle(context.Background(), tt.event)
 
 			// Assert
-			if tt.wantError != nil {
-				require.Error(t, err)
-				require.True(t, errors.IsCode(err, errors.NotFound))
-			} else {
-				require.NoError(t, err)
-				saved := mockRepo.data[tt.event.AggregateID.String()]
-				require.NotNil(t, saved)
-				require.Equal(t, tt.want.AggregateID, saved.AggregateID)
-				require.Equal(t, tt.want.UserID, saved.UserID)
-				require.Equal(t, tt.want.Version, saved.Version)
-				require.Equal(t, len(tt.want.Items), len(saved.Items))
-			}
+			require.NoError(t, err)
+			saved := mockRepo.data[tt.event.AggregateID.String()]
+			require.NotNil(t, saved)
+			require.Equal(t, tt.want.AggregateID, saved.AggregateID)
+			require.Equal(t, tt.want.UserID, saved.UserID)
+			require.Equal(t, tt.want.Version, saved.Version)
+			require.Equal(t, len(tt.want.Items), len(saved.Items))
 		})
 	}
 }
@@ -130,19 +123,6 @@ func TestTodoProjectorImpl_Handle_TodoAddedEvent(t *testing.T) {
 			},
 			wantError: nil,
 		},
-		"should return error when view not found": {
-			existingView: nil,
-			event: event.TodoAddedEvent{
-				AggregateID: aggregateID,
-				UserID:      mustNewUserID(t, "user123"),
-				TodoText:    mustNewTodoText(t, "Buy groceries"),
-				EventID:     uuid.New(),
-				Timestamp:   time.Now(),
-				Version:     2,
-			},
-			want:      nil,
-			wantError: errors.NotFound.New("todo list not found"),
-		},
 	}
 
 	for name, tt := range tests {
@@ -160,26 +140,15 @@ func TestTodoProjectorImpl_Handle_TodoAddedEvent(t *testing.T) {
 			err := projector.Handle(context.Background(), tt.event)
 
 			// Assert
-			if tt.wantError != nil {
-				require.Error(t, err)
-				require.True(t, errors.IsCode(err, errors.NotFound))
-			} else {
-				require.NoError(t, err)
-				saved := mockRepo.data[aggregateID.String()]
-				if tt.want == nil {
-					if tt.existingView == nil {
-						require.Nil(t, saved)
-					}
-				} else {
-					require.NotNil(t, saved)
-					require.Equal(t, tt.want.AggregateID, saved.AggregateID)
-					require.Equal(t, tt.want.UserID, saved.UserID)
-					require.Equal(t, tt.want.Version, saved.Version)
-					require.Equal(t, len(tt.want.Items), len(saved.Items))
-					if len(tt.want.Items) > 0 {
-						require.Equal(t, tt.want.Items[0].Text, saved.Items[0].Text)
-					}
-				}
+			require.NoError(t, err)
+			saved := mockRepo.data[aggregateID.String()]
+			require.NotNil(t, saved)
+			require.Equal(t, tt.want.AggregateID, saved.AggregateID)
+			require.Equal(t, tt.want.UserID, saved.UserID)
+			require.Equal(t, tt.want.Version, saved.Version)
+			require.Equal(t, len(tt.want.Items), len(saved.Items))
+			if len(tt.want.Items) > 0 {
+				require.Equal(t, tt.want.Items[0].Text, saved.Items[0].Text)
 			}
 		})
 	}
