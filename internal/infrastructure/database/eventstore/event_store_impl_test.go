@@ -76,7 +76,6 @@ func beginTxCtx(t *testing.T, dbClient *client.Client) (context.Context, *sqlx.T
 
 	ctx := transaction.WithTx(context.Background(), tx)
 
-	t.Cleanup(func() { _ = tx.Rollback() })
 	return ctx, tx
 }
 
@@ -162,10 +161,14 @@ func TestEventStore_SaveEvents(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			dbClient := newTestDBClient(t)
-			ctx, _ := beginTxCtx(t, dbClient)
+			ctx, tx := beginTxCtx(t, dbClient)
 			store := eventstore.NewEventStore(fakeDeserializer{})
 
 			err := store.SaveEvents(ctx, testAggregateID, tt.events)
+
+			// 明示的にrollbackしてテストデータをclean up
+			rollbackErr := tx.Rollback()
+			require.NoError(t, rollbackErr)
 
 			if tt.wantError != nil {
 				require.Error(t, err)
@@ -178,7 +181,6 @@ func TestEventStore_SaveEvents(t *testing.T) {
 }
 
 func TestEventStore_LoadEvents(t *testing.T) {
-	// Fixed aggregate ID for test consistency
 	testAggregateID := uuid.MustParse("12345678-1234-1234-1234-123456789012")
 
 	tests := map[string]struct {
@@ -229,7 +231,7 @@ func TestEventStore_LoadEvents(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			// Arrange
 			dbClient := newTestDBClient(t)
-			ctx, _ := beginTxCtx(t, dbClient)
+			ctx, tx := beginTxCtx(t, dbClient)
 			store := eventstore.NewEventStore(fakeDeserializer{})
 			if len(tt.savedEvents) > 0 {
 				err := store.SaveEvents(ctx, testAggregateID, tt.savedEvents)
@@ -238,6 +240,10 @@ func TestEventStore_LoadEvents(t *testing.T) {
 
 			// Act
 			loadedEvents, err := store.LoadEvents(ctx, tt.aggregateID)
+
+			// 明示的にrollbackしてテストデータをclean up
+			rollbackErr := tx.Rollback()
+			require.NoError(t, rollbackErr)
 
 			// Assert
 			if tt.wantError != nil {

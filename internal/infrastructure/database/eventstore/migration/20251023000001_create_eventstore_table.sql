@@ -1,9 +1,8 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE events (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    event_id CHAR(36) PRIMARY KEY,
     aggregate_id CHAR(36) NOT NULL,
-    event_id CHAR(36) NOT NULL UNIQUE,
     event_type VARCHAR(255) NOT NULL,
     event_data JSON NOT NULL,
     version INT NOT NULL,
