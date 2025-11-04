@@ -68,7 +68,7 @@ func (a *TodoListAggregate) ExecuteCreateTodoListCommand(cmd command.CreateTodoL
 		UserID:      cmd.UserID,
 		EventID:     uuid.New(),
 		Timestamp:   time.Now(),
-		Version:     1,
+		Version:     a.version + 1,
 	}
 
 	return a.applyEvent(evt, true)
