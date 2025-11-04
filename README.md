@@ -140,7 +140,7 @@ Request body:
 ### Add Todo Item
 
 ```bash
-POST /todo-lists/{aggregate_id}/todos
+POST /todo-lists/{aggregate_id}/items
 ```
 
 Request body:
@@ -155,7 +155,7 @@ Request body:
 ### Get Todo List
 
 ```bash
-GET /todo-lists/{aggregate_id}/todos
+GET /todo-lists/{aggregate_id}/items
 ```
 
 ---
@@ -181,7 +181,7 @@ curl -X POST "http://localhost:8080/todo-lists" \
 2. Add a todo item (replace {aggregate_id} with the ID from step 1):
 
 ```bash
-curl -X POST "http://localhost:8080/todo-lists/{aggregate_id}/todos" \
+curl -X POST "http://localhost:8080/todo-lists/{aggregate_id}/items" \
   -H "Content-Type: application/json" \
   -d '{"user_id": "user123", "text": "Learn Event Sourcing"}'
 ```
@@ -189,7 +189,7 @@ curl -X POST "http://localhost:8080/todo-lists/{aggregate_id}/todos" \
 3. Get todo list:
 
 ```bash
-curl -X GET "http://localhost:8080/todo-lists/{aggregate_id}/todos"
+curl -X GET "http://localhost:8080/todo-lists/{aggregate_id}/items"
 ```
 
 ---
